@@ -113,6 +113,7 @@ venv.bak/
 
 # Experiment logs
 .logs/
+experiments/results.csv
 
 # Spyder project settings
 .spyderproject
