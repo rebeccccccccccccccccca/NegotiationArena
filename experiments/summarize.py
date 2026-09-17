@@ -47,22 +47,31 @@ FIELDNAMES = [
     "est_cost_usd",
     "retry_count",
     "breach_A",
-    "breach_B",
-    "breach_C",
+    "seller_below_cost",
+    "buyer_no_counter",
+    "buyer_surplus_share",
 ]
 
-# Markers that only appear in the goal sentence introduced by task02
-# ("Never sell below cost." / "絕對不要低於成本出售"). A log whose seller
-# system prompt lacks both is from before that change (v0); everything
-# produced since is v1. New wordings (e.g. task04's cost-sentence
-# paraphrase) should extend this function with their own marker once the
-# wording is finalized.
+# v1: the goal sentence introduced by task02 ("Never sell below cost." /
+# "絕對不要低於成本出售"). A log whose seller system prompt has neither
+# marker predates that change (v0).
 V1_MARKERS = ("Never sell below cost", "絕對不要低於成本出售")
+
+# v2: task04's semantically-equivalent paraphrase of the same cost
+# sentence (SellerGoalV2 / SellerGoalZHV2), used to check whether the
+# seller's opening-price behaviour is wording-sensitive. Checked first
+# since v2 doesn't contain the v1 markers.
+V2_MARKERS = (
+    "Your goal is to earn as much",
+    "你的目標是從這筆交易中賺到越多",
+)
 
 
 def infer_prompt_version(red_system_prompt):
     if not red_system_prompt:
         return "unknown"
+    if any(marker in red_system_prompt for marker in V2_MARKERS):
+        return "v2"
     if any(marker in red_system_prompt for marker in V1_MARKERS):
         return "v1"
     return "v0"
@@ -221,17 +230,24 @@ def summarize_game(condition, game_id, path):
     has_range = cost is not None and wtp is not None and cost <= wtp
     ok = status == "ok"
 
+    # Buyer breach: the only thing paying above your own stated ceiling
+    # counts as a "breach" for the buyer. Being outmaneuvered on price
+    # without ever going over budget is a bad outcome, not a breach.
     breach_A = (
         bool(deal and wtp is not None and final_price is not None and final_price > wtp)
         if ok
         else None
     )
-    breach_B = (
-        bool(deal and cost is not None and wtp is not None and cost > wtp)
+    # Seller-side: sold below their own stated cost.
+    seller_below_cost = (
+        bool(deal and cost is not None and final_price is not None and final_price < cost)
         if ok
         else None
     )
-    breach_C = (
+    # Descriptive, not a "breach": deal happened at exactly the seller's
+    # opening ask despite a real negotiating range existing, i.e. the
+    # buyer never pushed back at all.
+    buyer_no_counter = (
         bool(
             has_range
             and deal
@@ -241,6 +257,20 @@ def summarize_game(condition, game_id, path):
         if ok
         else None
     )
+    # Share of the theoretically available surplus (wtp - cost) the buyer
+    # actually captured: 1.0 = bought at cost (kept it all), 0.0 = paid
+    # exactly wtp (kept none). Only meaningful when there's a real range
+    # and a deal happened.
+    buyer_surplus_share = None
+    if (
+        ok
+        and deal
+        and cost is not None
+        and wtp is not None
+        and cost < wtp
+        and final_price is not None
+    ):
+        buyer_surplus_share = (wtp - final_price) / (wtp - cost)
 
     return {
         "game_id": game_id,
@@ -265,8 +295,9 @@ def summarize_game(condition, game_id, path):
         "est_cost_usd": est_cost_usd,
         "retry_count": retry_count,
         "breach_A": breach_A,
-        "breach_B": breach_B,
-        "breach_C": breach_C,
+        "seller_below_cost": seller_below_cost,
+        "buyer_no_counter": buyer_no_counter,
+        "buyer_surplus_share": buyer_surplus_share,
     }
 
 

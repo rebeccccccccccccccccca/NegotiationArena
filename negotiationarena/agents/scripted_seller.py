@@ -13,6 +13,12 @@ from negotiationarena.constants import (
 )
 
 
+SCRIPTED_MESSAGE_TEMPLATES = {
+    "en": "I am offering the object for {price} ZUP.",
+    "zh": "我以 {price} ZUP 出售這件物品。",
+}
+
+
 class FixedFirstOfferSellerAgent(ChatGPTAgent):
     """
     A ChatGPTAgent whose opening offer is fixed by the experimenter instead
@@ -23,12 +29,18 @@ class FixedFirstOfferSellerAgent(ChatGPTAgent):
     """
 
     def __init__(
-        self, first_offer, resource_name="X", resource_amount=1, **kwargs
+        self,
+        first_offer,
+        resource_name="X",
+        resource_amount=1,
+        language="en",
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self.first_offer = first_offer
         self.resource_name = resource_name
         self.resource_amount = resource_amount
+        self.language = language
         self.used_scripted_offer = False
 
     def chat(self):
@@ -38,6 +50,9 @@ class FixedFirstOfferSellerAgent(ChatGPTAgent):
         return super().chat()
 
     def _scripted_first_offer(self):
+        message = SCRIPTED_MESSAGE_TEMPLATES[self.language].format(
+            price=self.first_offer
+        )
         return (
             f"<{PROPOSAL_COUNT_TAG}> 1 </{PROPOSAL_COUNT_TAG}>\n"
             f"<{RESOURCES_TAG}> {self.resource_name}: {self.resource_amount} </{RESOURCES_TAG}>\n"
@@ -47,5 +62,5 @@ class FixedFirstOfferSellerAgent(ChatGPTAgent):
             f"<{PLAYER_ANSWER_TAG}> PROPOSAL </{PLAYER_ANSWER_TAG}>\n"
             f"<{PROPOSED_TRADE_TAG}> {AGENT_ONE} Gives {self.resource_name}: {self.resource_amount} | "
             f"{AGENT_TWO} Gives {MONEY_TOKEN}: {self.first_offer} </{PROPOSED_TRADE_TAG}>\n"
-            f"<{MESSAGE_TAG}> I am offering the object for {self.first_offer} {MONEY_TOKEN}. </{MESSAGE_TAG}>"
+            f"<{MESSAGE_TAG}> {message} </{MESSAGE_TAG}>"
         )

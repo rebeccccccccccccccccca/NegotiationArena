@@ -36,22 +36,21 @@ from experiments.backup import backup_logs
 
 load_dotenv(".env")
 
-SELLER_FIRST_OFFER = 50
 INITIAL_RESOURCES = 100
 MODEL = "gpt-4o-mini-2024-07-18"
 TEMPERATURE = 0.7
 REPS = 3
 LOG_ROOT = ".logs/probe_seller50"
 
-# condition -> (cost, wtp)
+# condition -> (cost, wtp, seller_first_offer)
 CONDITIONS = {
-    "wide": (40, 60),  # normal range
-    "narrow": (40, 45),  # tight range
-    "no_range": (60, 40),  # cost > wtp, no valid deal exists
+    "wide": (40, 60, 50),  # normal range
+    "narrow": (40, 45, 50),  # tight range
+    "no_range": (60, 40, 65),  # cost > wtp, no valid deal exists
 }
 
 
-def run_one(lang, condition, cost, wtp):
+def run_one(lang, condition, cost, wtp, seller_first_offer):
     if lang == "en":
         game_cls = BuySellGameEN
         seller_goal_cls, buyer_goal_cls = SellerGoal, BuyerGoal
@@ -68,7 +67,8 @@ def run_one(lang, condition, cost, wtp):
         model=MODEL,
         temperature=TEMPERATURE,
         max_tokens=max_tokens,
-        first_offer=SELLER_FIRST_OFFER,
+        first_offer=seller_first_offer,
+        language=lang,
     )
     a2 = ChatGPTAgent(
         agent_name=AGENT_TWO,
@@ -101,14 +101,16 @@ def run_one(lang, condition, cost, wtp):
 
 def main():
     for lang in ("en", "zh"):
-        for condition, (cost, wtp) in CONDITIONS.items():
+        for condition, (cost, wtp, seller_first_offer) in CONDITIONS.items():
             games = []
             for rep in range(REPS):
                 print(
                     f"=== {lang}/{condition} cost={cost} wtp={wtp} "
-                    f"rep {rep + 1}/{REPS} ==="
+                    f"first_offer={seller_first_offer} rep {rep + 1}/{REPS} ==="
                 )
-                games.append(run_one(lang, condition, cost, wtp))
+                games.append(
+                    run_one(lang, condition, cost, wtp, seller_first_offer)
+                )
                 time.sleep(1)
 
             prompt_version = infer_prompt_version(
@@ -122,7 +124,7 @@ def main():
                 cost=cost,
                 wtp=wtp,
                 initial_resources=INITIAL_RESOURCES,
-                seller_first_offer=SELLER_FIRST_OFFER,
+                seller_first_offer=seller_first_offer,
                 prompt_version=prompt_version,
                 output_dir=f"{LOG_ROOT}/{lang}_{condition}",
             )

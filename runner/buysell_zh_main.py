@@ -5,7 +5,11 @@ from dotenv import load_dotenv
 from negotiationarena.agents.chatgpt import ChatGPTAgent
 from negotiationarena.agents.scripted_seller import FixedFirstOfferSellerAgent
 from negotiationarena.game_objects.resource import Resources
-from negotiationarena.game_objects.goal import BuyerGoalZH, SellerGoalZH
+from negotiationarena.game_objects.goal import (
+    BuyerGoalZH,
+    SellerGoalZH,
+    SellerGoalZHV2,
+)
 from negotiationarena.game_objects.valuation import Valuation
 from negotiationarena.constants import *
 import traceback
@@ -38,6 +42,15 @@ def parse_args():
         "ZUP amount by script instead of the model; the model plays "
         "from its second move onward.",
     )
+    parser.add_argument(
+        "--prompt-version",
+        choices=["v1", "v2"],
+        default="v1",
+        help="v1 is the standard SellerGoalZH cost sentence; v2 is the "
+        "task04 paraphrase (same meaning, different wording), used to "
+        "check if the seller's opening-price behaviour is wording-"
+        "sensitive. Never overwrites v1.",
+    )
     return parser.parse_args()
 
 
@@ -55,6 +68,7 @@ if __name__ == "__main__":
                     temperature=TEMPERATURE,
                     max_tokens=600,
                     first_offer=args.seller_first_offer,
+                    language="zh",
                 )
             else:
                 a1 = ChatGPTAgent(
@@ -70,11 +84,14 @@ if __name__ == "__main__":
                 max_tokens=600,
             )
 
+            seller_goal_cls = (
+                SellerGoalZH if args.prompt_version == "v1" else SellerGoalZHV2
+            )
             c = BuySellGame(
                 players=[a1, a2],
                 iterations=10,
                 player_goals=[
-                    SellerGoalZH(cost_of_production=Valuation({"X": COST})),
+                    seller_goal_cls(cost_of_production=Valuation({"X": COST})),
                     BuyerGoalZH(willingness_to_pay=Valuation({"X": WTP})),
                 ],
                 player_starting_resources=[

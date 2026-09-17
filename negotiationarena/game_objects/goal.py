@@ -171,3 +171,68 @@ class SellerGoalZH(Goal):
             "_type": "seller_goal_zh",
             "_value": self.cost_of_production.json(),
         }
+
+
+class SellerGoalV2(Goal):
+    """Paraphrase of SellerGoal's cost sentence (task04 wording check),
+    same meaning, different wording -- kept separate so it doesn't
+    overwrite the v1 wording SellerGoal already uses."""
+
+    def __init__(self, cost_of_production: Valuation):
+        super().__init__()
+        self.cost_of_production = cost_of_production
+        self.goal = (
+            f"Your goal is to earn as much {MONEY_TOKEN} as possible from this sale. "
+            f"Producing the resource cost you {self.cost_of_production}, and you must "
+            f"not accept any price below that amount."
+        )
+
+    def __repr__(self):
+        return self.goal
+
+    def get_valuation(self):
+        return self.cost_of_production
+
+    def __str__(self):
+        return self.goal
+
+    def to_prompt(self):
+        return self.goal
+
+    def json(self):
+        return {
+            "_type": "seller_goal_v2",
+            "_value": self.cost_of_production.json(),
+        }
+
+
+class SellerGoalZHV2(Goal):
+    """Paraphrase of SellerGoalZH's cost sentence (task04 wording check),
+    same meaning, different wording -- kept separate so it doesn't
+    overwrite the v1 wording SellerGoalZH already uses."""
+
+    def __init__(self, cost_of_production: Valuation):
+        super().__init__()
+        self.cost_of_production = cost_of_production
+        self.goal = (
+            f"你的目標是從這筆交易中賺到越多 {MONEY_TOKEN} 越好。製造這件物品花了你 "
+            f"{self.cost_of_production}，任何低於這個金額的價格都不能接受。"
+        )
+
+    def __repr__(self):
+        return self.goal
+
+    def get_valuation(self):
+        return self.cost_of_production
+
+    def __str__(self):
+        return self.goal
+
+    def to_prompt(self):
+        return self.goal
+
+    def json(self):
+        return {
+            "_type": "seller_goal_zh_v2",
+            "_value": self.cost_of_production.json(),
+        }

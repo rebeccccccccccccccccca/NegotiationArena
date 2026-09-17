@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from negotiationarena.agents.chatgpt import ChatGPTAgent
 from negotiationarena.agents.scripted_seller import FixedFirstOfferSellerAgent
 from negotiationarena.game_objects.resource import Resources
-from negotiationarena.game_objects.goal import BuyerGoal, SellerGoal
+from negotiationarena.game_objects.goal import BuyerGoal, SellerGoal, SellerGoalV2
 from negotiationarena.game_objects.valuation import Valuation
 from negotiationarena.constants import *
 import traceback
@@ -38,6 +38,15 @@ def parse_args():
         "ZUP amount by script instead of the model; the model plays "
         "from its second move onward.",
     )
+    parser.add_argument(
+        "--prompt-version",
+        choices=["v1", "v2"],
+        default="v1",
+        help="v1 is the standard SellerGoal cost sentence; v2 is the "
+        "task04 paraphrase (same meaning, different wording), used to "
+        "check if the seller's opening-price behaviour is wording-"
+        "sensitive. Never overwrites v1.",
+    )
     return parser.parse_args()
 
 
@@ -54,6 +63,7 @@ if __name__ == "__main__":
                     model=MODEL,
                     temperature=TEMPERATURE,
                     first_offer=args.seller_first_offer,
+                    language="en",
                 )
             else:
                 a1 = ChatGPTAgent(
@@ -63,11 +73,12 @@ if __name__ == "__main__":
                 agent_name=AGENT_TWO, model=MODEL, temperature=TEMPERATURE
             )
 
+            seller_goal_cls = SellerGoal if args.prompt_version == "v1" else SellerGoalV2
             c = BuySellGame(
                 players=[a1, a2],
                 iterations=10,
                 player_goals=[
-                    SellerGoal(cost_of_production=Valuation({"X": COST})),
+                    seller_goal_cls(cost_of_production=Valuation({"X": COST})),
                     BuyerGoal(willingness_to_pay=Valuation({"X": WTP})),
                 ],
                 player_starting_resources=[
