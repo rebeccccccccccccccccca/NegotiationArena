@@ -47,3 +47,10 @@ analysis/                   CSV、統計腳本、圖表
 - 改框架檔案（`game.py`、`parser.py`、`agents.py`）前先說明會動到什麼，並在改完後跑 `runner/buysell_main.py` 一局驗證。
 - 中文 prompt 由我人工校對；你可以出翻譯初稿，但不要自行決定用詞。
 - 統計模型（mixed-effects 的固定／隨機效應）由我決定，你負責實作。
+
+## Git 規則
+- 不可執行 git commit、git push、git rebase、git reset,
+  也不可改寫任何歷史。
+- 改動完成後只回報:改了哪些檔案、每個檔案改了什麼、
+  建議的 commit 訊息。由使用者自己提交。
+- git status、git diff、git log 等唯讀指令可以使用。
