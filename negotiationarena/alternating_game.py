@@ -275,7 +275,9 @@ class AlternatingGame(Game):
                 log_str += "\n".join(data)
 
         # write to log-file
-        with open(os.path.join(self.log_path, "interaction.log"), "w") as f:
+        with open(
+            os.path.join(self.log_path, "interaction.log"), "w", encoding="utf-8"
+        ) as f:
             f.write(log_str)
 
 
