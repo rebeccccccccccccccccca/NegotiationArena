@@ -54,7 +54,9 @@ class Game(ABC):
         """
         Path(self.log_path).mkdir(parents=True, exist_ok=True)
         # log full state
-        with open(os.path.join(self.log_path, "game_state.json"), "w") as f:
+        with open(
+            os.path.join(self.log_path, "game_state.json"), "w", encoding="utf-8"
+        ) as f:
             json.dump(self.to_dict(), f, cls=GameEncoder, indent=2)
 
         self.log_human_readable_state()

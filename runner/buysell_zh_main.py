@@ -10,9 +10,16 @@ from negotiationarena.game_objects.valuation import Valuation
 from negotiationarena.constants import *
 import traceback
 from games.buy_sell_game_zh.game import BuySellGame
+from experiments.run_logger import append_run_log, infer_prompt_version
+from experiments.backup import backup_logs
 
 
 load_dotenv(".env")
+
+MODEL = "gpt-4o-mini-2024-07-18"
+TEMPERATURE = 0.7
+COST, WTP = 40, 60
+LOG_DIR = ".logs/zh_baseline_test"
 
 
 def parse_args():
@@ -37,29 +44,38 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
 
+    games = []
     for i in range(1):
+        c = None
         try:
             if args.seller_first_offer is not None:
                 a1 = FixedFirstOfferSellerAgent(
                     agent_name=AGENT_ONE,
-                    model="gpt-4o-mini",
+                    model=MODEL,
+                    temperature=TEMPERATURE,
                     max_tokens=600,
                     first_offer=args.seller_first_offer,
                 )
             else:
                 a1 = ChatGPTAgent(
-                    agent_name=AGENT_ONE, model="gpt-4o-mini", max_tokens=600
+                    agent_name=AGENT_ONE,
+                    model=MODEL,
+                    temperature=TEMPERATURE,
+                    max_tokens=600,
                 )
             a2 = ChatGPTAgent(
-                agent_name=AGENT_TWO, model="gpt-4o-mini", max_tokens=600
+                agent_name=AGENT_TWO,
+                model=MODEL,
+                temperature=TEMPERATURE,
+                max_tokens=600,
             )
 
             c = BuySellGame(
                 players=[a1, a2],
                 iterations=10,
                 player_goals=[
-                    SellerGoalZH(cost_of_production=Valuation({"X": 40})),
-                    BuyerGoalZH(willingness_to_pay=Valuation({"X": 60})),
+                    SellerGoalZH(cost_of_production=Valuation({"X": COST})),
+                    BuyerGoalZH(willingness_to_pay=Valuation({"X": WTP})),
                 ],
                 player_starting_resources=[
                     Resources({"X": 1}),
@@ -73,7 +89,7 @@ if __name__ == "__main__":
                     "",
                     "",
                 ],
-                log_dir=".logs/zh_baseline_test",
+                log_dir=LOG_DIR,
             )
 
             c.run()
@@ -86,3 +102,25 @@ if __name__ == "__main__":
             print(f"Exception Type: {exception_type}")
             print(f"Exception Message: {exception_message}")
             print(f"Stack Trace:\n{stack_trace}")
+        finally:
+            if c is not None:
+                games.append(c)
+
+    prompt_version = (
+        infer_prompt_version(games[0].players[0].conversation[0]["content"])
+        if games
+        else None
+    )
+    append_run_log(
+        games,
+        model=MODEL,
+        temperature=TEMPERATURE,
+        language="zh",
+        cost=COST,
+        wtp=WTP,
+        initial_resources=args.initial_resources,
+        seller_first_offer=args.seller_first_offer,
+        prompt_version=prompt_version,
+        output_dir=LOG_DIR,
+    )
+    backup_logs()

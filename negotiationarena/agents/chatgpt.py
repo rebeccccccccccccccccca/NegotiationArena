@@ -1,4 +1,5 @@
 import copy
+import openai
 from openai import OpenAI
 import os
 
@@ -9,6 +10,18 @@ import time
 from negotiationarena.constants import AGENT_TWO, AGENT_ONE
 from negotiationarena.agents.agent_behaviours import SelfCheckingAgent
 from copy import deepcopy
+
+# Transient errors worth retrying (rate limits, connection hiccups, 5xx).
+# Anything else (bad request, auth, content filter, ...) fails immediately --
+# retrying won't fix a malformed request or a bad API key.
+RETRYABLE_OPENAI_ERRORS = (
+    openai.RateLimitError,
+    openai.APIConnectionError,
+    openai.APITimeoutError,
+    openai.InternalServerError,
+)
+MAX_RETRIES = 3
+RETRY_BACKOFF_SECONDS = 1
 
 
 class ChatGPTAgent(Agent):
@@ -33,6 +46,11 @@ class ChatGPTAgent(Agent):
         self.client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
         self.temperature = temperature
         self.max_tokens = max_tokens
+
+        # Per-call usage, accumulated for cost/token accounting in
+        # game_state.json (see AlternatingGame.run()'s run_metadata).
+        self.usage_log = []
+        self.retry_count = 0
 
     def init_agent(self, system_prompt, role):
         if AGENT_ONE in self.agent_name:
@@ -66,12 +84,29 @@ class ChatGPTAgent(Agent):
         return result
 
     def chat(self):
-        chat = self.client.chat.completions.create(
-            model=self.model,
-            messages=self.conversation,
-            temperature=self.temperature,
-            max_tokens=self.max_tokens,
-            seed=self.seed,
+        for attempt in range(MAX_RETRIES + 1):
+            try:
+                chat = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=self.conversation,
+                    temperature=self.temperature,
+                    max_tokens=self.max_tokens,
+                    seed=self.seed,
+                )
+                break
+            except RETRYABLE_OPENAI_ERRORS:
+                self.retry_count += 1
+                if attempt < MAX_RETRIES:
+                    time.sleep(RETRY_BACKOFF_SECONDS * (2**attempt))
+                    continue
+                raise
+
+        self.usage_log.append(
+            {
+                "served_model": chat.model,
+                "prompt_tokens": chat.usage.prompt_tokens,
+                "completion_tokens": chat.usage.completion_tokens,
+            }
         )
 
         return chat.choices[0].message.content

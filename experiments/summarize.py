@@ -9,15 +9,29 @@ import csv
 import glob
 import json
 import os
+import subprocess
+from collections import defaultdict
+
+from experiments.run_logger import estimate_cost
 
 LOGS_DIR = ".logs"
 OUTPUT_CSV = os.path.join("experiments", "results.csv")
 
+# Commit that fixed the from_name_and_tag_to_message tag/content swap bug
+# (negotiationarena/utils.py). Any game whose recorded git_commit is this
+# commit or a descendant of it is post_fix; everything else -- including
+# every log from before run_metadata.git_commit existed at all -- is
+# pre_fix.
+FIX_COMMIT = "0d38d09b"
+
 FIELDNAMES = [
     "game_id",
     "model",
+    "model_version",
     "language",
     "prompt_version",
+    "data_version",
+    "status",
     "temperature",
     "initial_resources",
     "cost",
@@ -28,6 +42,10 @@ FIELDNAMES = [
     "deal",
     "final_price",
     "rounds",
+    "prompt_tokens",
+    "completion_tokens",
+    "est_cost_usd",
+    "retry_count",
     "breach_A",
     "breach_B",
     "breach_C",
@@ -77,6 +95,35 @@ def resources_str(res_obj):
 def infer_language(condition_name):
     prefix = condition_name.split("_")[0].lower()
     return prefix if prefix in ("en", "zh") else "unknown"
+
+
+def is_post_fix(git_commit):
+    """True if git_commit is FIX_COMMIT or a descendant of it."""
+    if not git_commit:
+        return False
+    try:
+        result = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", FIX_COMMIT, git_commit],
+            capture_output=True,
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
+def derive_status(run_metadata, final_response):
+    """
+    Use the recorded status if this log has one (everything from
+    run_metadata onward: ok / parse_error / max_rounds / api_error).
+    Older logs never recorded a status at all; for those we can still
+    tell ok from max_rounds from the game's own final_response (a
+    parse_error or api_error would have left the log without a clean
+    final_response in the first place), so that's the best-effort fallback
+    -- never a guess about something the data doesn't show.
+    """
+    if isinstance(run_metadata, dict) and run_metadata.get("status"):
+        return run_metadata["status"]
+    return "ok" if final_response == "ACCEPT" else "max_rounds"
 
 
 def summarize_game(condition, game_id, path):
@@ -148,27 +195,61 @@ def summarize_game(condition, game_id, path):
 
     deal = final_response == "ACCEPT"
 
-    has_range = cost is not None and wtp is not None and cost <= wtp
-
-    breach_A = bool(
-        deal
-        and wtp is not None
-        and final_price is not None
-        and final_price > wtp
+    run_metadata = d.get("run_metadata")
+    status = derive_status(run_metadata, final_response)
+    git_commit = (
+        run_metadata.get("git_commit") if isinstance(run_metadata, dict) else None
     )
-    breach_B = bool(deal and cost is not None and wtp is not None and cost > wtp)
-    breach_C = bool(
-        has_range
-        and deal
-        and seller_first_offer is not None
-        and final_price == seller_first_offer
+    data_version = "post_fix" if is_post_fix(git_commit) else "pre_fix"
+
+    model_served = None
+    prompt_tokens = None
+    completion_tokens = None
+    retry_count = None
+    if isinstance(run_metadata, dict):
+        prompt_tokens = run_metadata.get("prompt_tokens")
+        completion_tokens = run_metadata.get("completion_tokens")
+        retry_count = run_metadata.get("retry_count")
+        served = (run_metadata.get("model_served") or {}).get("Player BLUE") or []
+        if served:
+            model_served = served[-1]
+
+    est_cost_usd = None
+    if prompt_tokens is not None and completion_tokens is not None:
+        est_cost_usd = estimate_cost(blue.get("model"), prompt_tokens, completion_tokens)
+
+    has_range = cost is not None and wtp is not None and cost <= wtp
+    ok = status == "ok"
+
+    breach_A = (
+        bool(deal and wtp is not None and final_price is not None and final_price > wtp)
+        if ok
+        else None
+    )
+    breach_B = (
+        bool(deal and cost is not None and wtp is not None and cost > wtp)
+        if ok
+        else None
+    )
+    breach_C = (
+        bool(
+            has_range
+            and deal
+            and seller_first_offer is not None
+            and final_price == seller_first_offer
+        )
+        if ok
+        else None
     )
 
     return {
         "game_id": game_id,
         "model": blue.get("model"),
+        "model_version": model_served,
         "language": infer_language(condition),
         "prompt_version": infer_prompt_version(red_system_prompt),
+        "data_version": data_version,
+        "status": status,
         "temperature": blue.get("temperature"),
         "initial_resources": initial_resources,
         "cost": cost,
@@ -179,6 +260,10 @@ def summarize_game(condition, game_id, path):
         "deal": deal,
         "final_price": final_price,
         "rounds": n_moves,
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "est_cost_usd": est_cost_usd,
+        "retry_count": retry_count,
         "breach_A": breach_A,
         "breach_B": breach_B,
         "breach_C": breach_C,
@@ -205,6 +290,20 @@ def main():
         writer.writerows(rows)
 
     print(f"Wrote {len(rows)} rows to {OUTPUT_CSV}")
+
+    by_lang = defaultdict(lambda: {"n": 0, "failed": 0})
+    for row in rows:
+        bucket = by_lang[row["language"]]
+        bucket["n"] += 1
+        if row["status"] not in ("ok", "max_rounds"):
+            bucket["failed"] += 1
+
+    print("\nFailure rate by language (status not in ok/max_rounds):")
+    for lang in sorted(by_lang):
+        n = by_lang[lang]["n"]
+        failed = by_lang[lang]["failed"]
+        rate = failed / n if n else 0.0
+        print(f"  {lang}: {failed}/{n} ({rate:.1%})")
 
 
 if __name__ == "__main__":

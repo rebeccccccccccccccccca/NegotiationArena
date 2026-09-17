@@ -43,7 +43,7 @@ class Agent(ABC):
         self.run_epoch_time_ms = state_dict["run_epoch_time_ms"]
 
     def dump_conversation(self, file_name):
-        with open(file_name, "w") as f:
+        with open(file_name, "w", encoding="utf-8") as f:
             for index, text in enumerate(self.conversation):
                 c = text["content"].replace("\n", " ")
 

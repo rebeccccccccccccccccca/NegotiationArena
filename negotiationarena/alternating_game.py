@@ -8,7 +8,7 @@ from typing import List
 from abc import ABC, abstractmethod, abstractproperty
 from negotiationarena.game_objects.game import Game
 from negotiationarena.agents.agents import Agent
-from negotiationarena.utils import get_next_filename
+from negotiationarena.utils import get_next_filename, get_git_commit
 from negotiationarena.constants import PLAYER_ANSWER_TAG
 
 
@@ -170,12 +170,52 @@ class AlternatingGame(Game):
         # update turn
         self.get_next_player()
 
+    def _collect_usage(self):
+        """
+        Refresh run_metadata's token/retry/served-model totals from each
+        player's usage_log (populated by API-calling agents, e.g.
+        ChatGPTAgent). Safe to call repeatedly; always reflects the current
+        state. Agents without usage tracking (e.g. non-API agents) just
+        contribute nothing.
+        """
+        total_prompt = 0
+        total_completion = 0
+        total_retry = 0
+        served = {}
+        for player in self.players:
+            usage_log = getattr(player, "usage_log", [])
+            for entry in usage_log:
+                total_prompt += entry.get("prompt_tokens", 0)
+                total_completion += entry.get("completion_tokens", 0)
+            served[player.agent_name] = [
+                entry.get("served_model") for entry in usage_log
+            ]
+            total_retry += getattr(player, "retry_count", 0)
+
+        self.run_metadata["prompt_tokens"] = total_prompt
+        self.run_metadata["completion_tokens"] = total_completion
+        self.run_metadata["total_tokens"] = total_prompt + total_completion
+        self.run_metadata["retry_count"] = total_retry
+        self.run_metadata["model_served"] = served
+
     def run(self):
         """
 
         Execute the ratbench / Main ratbench engine
 
         """
+        self.run_metadata = {
+            "status": None,
+            "retry_count": 0,
+            "model_requested": {
+                p.agent_name: getattr(p, "model", None) for p in self.players
+            },
+            "model_served": {p.agent_name: [] for p in self.players},
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "git_commit": get_git_commit(),
+        }
 
         # patrick said it was a good idea to do it this way
         self.log_state()
@@ -187,11 +227,27 @@ class AlternatingGame(Game):
             message = self.read_iteration_message(iteration - 1)
 
             # player to take a step/action based on current ratbench state
-            response = self.players[self.turn].step(message)
-            # print(response)
+            try:
+                response = self.players[self.turn].step(message)
+            except Exception:
+                # API call itself failed after retries: leave the
+                # game_state.json we already have on disk (up through the
+                # last successful turn) instead of discarding it.
+                self.run_metadata["status"] = "api_error"
+                self._collect_usage()
+                self.log_state()
+                raise
 
             # update ratbench state based on players and player response
-            self.write_game_state(self.players, response)
+            try:
+                self.write_game_state(self.players, response)
+            except Exception:
+                # response came back but didn't parse (missing/malformed
+                # tags): same policy, log what we have and re-raise.
+                self.run_metadata["status"] = "parse_error"
+                self._collect_usage()
+                self.log_state()
+                raise
 
             # for debug
             self.view_state(
@@ -204,16 +260,31 @@ class AlternatingGame(Game):
             )
 
             # for logging / reproducibility
+            self._collect_usage()
             self.log_state()
 
             # check if ratbench is over
             if self.game_over():
                 self.after_game_ends()
+                final_response = (
+                    self.game_state[-1].get("summary", {}).get("final_response")
+                    if self.game_state[-1].get("current_iteration") == "END"
+                    else None
+                )
+                self.run_metadata["status"] = (
+                    "ok" if final_response == ACCEPTING_TAG else "max_rounds"
+                )
+                self._collect_usage()
                 self.log_state()
                 return
 
             self.get_next_player()
             print("=============\n")
+
+        # loop exhausted self.iterations without game_over() ever firing
+        self.run_metadata["status"] = "max_rounds"
+        self._collect_usage()
+        self.log_state()
 
     def log_human_readable_state(self):
         """

@@ -1,0 +1,7 @@
+{
+  "_comment": "USD per 1000 tokens, keyed by the exact model string passed to the API (runner's `model=`, not the served/dated snapshot). Fill in real rates yourself; est_cost_usd is null for any model missing here or with a null rate.",
+  "gpt-4o-mini-2024-07-18": {
+    "prompt_per_1k": null,
+    "completion_per_1k": null
+  }
+}

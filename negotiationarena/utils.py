@@ -1,6 +1,22 @@
 import os
 import copy
+import subprocess
 from negotiationarena.agents import ChatGPTAgent, ClaudeAgent
+
+
+def get_git_commit():
+    """Current HEAD commit hash of the repo the process is running from,
+    or None if git isn't available / this isn't a git checkout."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout.strip()
+    except Exception:
+        return None
 
 
 def extract_multiple_tags(response, interest_tags):

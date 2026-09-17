@@ -114,6 +114,7 @@ venv.bak/
 # Experiment logs
 .logs/
 experiments/results.csv
+backups/
 
 # Spyder project settings
 .spyderproject
