@@ -9,6 +9,7 @@ import csv
 import glob
 import json
 import os
+import re
 import subprocess
 from collections import defaultdict
 
@@ -101,9 +102,19 @@ def resources_str(res_obj):
     return ";".join(f"{k}={v}" for k, v in d.items())
 
 
-def infer_language(condition_name):
-    prefix = condition_name.split("_")[0].lower()
-    return prefix if prefix in ("en", "zh") else "unknown"
+CJK_PATTERN = re.compile(r"[一-鿿]")
+
+
+def infer_language(red_system_prompt):
+    """
+    Derived from the actual prompt content (presence of CJK characters),
+    not the log folder name -- some batches (e.g. baseline_v2,
+    rephrase_check) put both languages under the same directory, so a
+    folder-name prefix isn't reliable.
+    """
+    if red_system_prompt and CJK_PATTERN.search(red_system_prompt):
+        return "zh"
+    return "en"
 
 
 def is_post_fix(git_commit):
@@ -135,7 +146,7 @@ def derive_status(run_metadata, final_response):
     return "ok" if final_response == "ACCEPT" else "max_rounds"
 
 
-def summarize_game(condition, game_id, path):
+def summarize_game(game_id, path):
     d = json.load(open(path, encoding="utf-8"))
 
     red = next(p for p in d["players"] if p["agent_name"] == "Player RED")
@@ -276,7 +287,7 @@ def summarize_game(condition, game_id, path):
         "game_id": game_id,
         "model": blue.get("model"),
         "model_version": model_served,
-        "language": infer_language(condition),
+        "language": infer_language(red_system_prompt),
         "prompt_version": infer_prompt_version(red_system_prompt),
         "data_version": data_version,
         "status": status,
@@ -309,10 +320,8 @@ def main():
     pattern = os.path.join(LOGS_DIR, "**", "game_state.json")
     for path in sorted(glob.glob(pattern, recursive=True)):
         norm = path.replace("\\", "/")
-        run_dir = os.path.dirname(norm)
-        condition = os.path.basename(os.path.dirname(run_dir))
         game_id = norm[len(LOGS_DIR) + 1 : -len("/game_state.json")]
-        rows.append(summarize_game(condition, game_id, path))
+        rows.append(summarize_game(game_id, path))
 
     os.makedirs(os.path.dirname(OUTPUT_CSV), exist_ok=True)
     with open(OUTPUT_CSV, "w", newline="", encoding="utf-8") as f:

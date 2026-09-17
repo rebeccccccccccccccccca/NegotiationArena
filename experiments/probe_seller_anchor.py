@@ -8,7 +8,7 @@ games/buy_sell_game(_zh) games and Buyer/SellerGoal classes unchanged;
 only the seller's first move is scripted, every later move (including all
 of the buyer's moves) is a normal API call.
 
-Writes to .logs/probe_seller50/<lang>_<condition>/<epoch_ms>/. Run
+Writes to .logs/probe_v2/<lang>_<condition>/<epoch_ms>/. Run
 experiments/summarize.py afterwards to fold these runs into results.csv
 along with everything else already under .logs/.
 """
@@ -40,7 +40,7 @@ INITIAL_RESOURCES = 100
 MODEL = "gpt-4o-mini-2024-07-18"
 TEMPERATURE = 0.7
 REPS = 3
-LOG_ROOT = ".logs/probe_seller50"
+LOG_ROOT = ".logs/probe_v2"
 
 # condition -> (cost, wtp, seller_first_offer)
 CONDITIONS = {
