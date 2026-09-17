@@ -50,3 +50,5 @@
   都是既有問題，連最舊、什麼新欄位都沒有的局都讀不出來。因此決定保留
   `webapp/` 原狀不動，另外寫 `experiments/viewer.py`，直接 `json.load`
   讀 `game_state.json`，不經過壞掉的 `Game.from_dict`/`Agent.from_dict`。
+- `summarize.py` 語言判斷修正（資料夾名 → 讀 `run_metadata.language`，
+  舊局以系統提示詞內容備援）包含於 commit `50d75734`。
