@@ -44,8 +44,8 @@ def get_tag_indices(response, interest_tag):
     return start_index, end_index, len(f"<{interest_tag}>")
 
 
-def from_name_and_tag_to_message(name, tag):
-    return f"<{tag}> {name} </{tag}>"
+def from_name_and_tag_to_message(tag, content):
+    return f"<{tag}> {content} </{tag}>"
 
 
 def text_to_dict(s):
