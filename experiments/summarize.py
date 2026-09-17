@@ -51,6 +51,7 @@ FIELDNAMES = [
     "seller_below_cost",
     "buyer_no_counter",
     "buyer_surplus_share",
+    "buyer_surplus_uncond",
 ]
 
 # v1: the goal sentence introduced by task02 ("Never sell below cost." /
@@ -105,16 +106,25 @@ def resources_str(res_obj):
 CJK_PATTERN = re.compile(r"[一-鿿]")
 
 
-def infer_language(red_system_prompt):
-    """
-    Derived from the actual prompt content (presence of CJK characters),
-    not the log folder name -- some batches (e.g. baseline_v2,
-    rephrase_check) put both languages under the same directory, so a
-    folder-name prefix isn't reliable.
-    """
+def detect_language_from_prompt(red_system_prompt):
+    """CJK-presence fallback for logs with no run_metadata.language."""
     if red_system_prompt and CJK_PATTERN.search(red_system_prompt):
         return "zh"
     return "en"
+
+
+def resolve_language(run_metadata, red_system_prompt):
+    """
+    Prefer the language the runner actually recorded
+    (run_metadata.language, set directly by the runner/probe script --
+    ground truth, not a guess). Older logs never recorded this, so fall
+    back to detecting CJK characters in the prompt -- needed because some
+    batches (e.g. baseline_v2, rephrase_check) put both languages under
+    the same directory, so a folder-name prefix isn't reliable either.
+    """
+    if isinstance(run_metadata, dict) and run_metadata.get("language"):
+        return run_metadata["language"]
+    return detect_language_from_prompt(red_system_prompt)
 
 
 def is_post_fix(git_commit):
@@ -283,11 +293,23 @@ def summarize_game(game_id, path):
     ):
         buyer_surplus_share = (wtp - final_price) / (wtp - cost)
 
+    # Same as buyer_surplus_share, but scores a clean no-deal (max_rounds)
+    # as 0 instead of leaving it blank -- an unconditional view of surplus
+    # captured that doesn't drop the (very informative) failed-to-close
+    # games from the average. Still blank when there's no real range
+    # (cost >= wtp) or the game errored (status not ok/max_rounds).
+    buyer_surplus_uncond = None
+    if cost is not None and wtp is not None and cost < wtp:
+        if ok and deal and final_price is not None:
+            buyer_surplus_uncond = (wtp - final_price) / (wtp - cost)
+        elif status == "max_rounds":
+            buyer_surplus_uncond = 0
+
     return {
         "game_id": game_id,
         "model": blue.get("model"),
         "model_version": model_served,
-        "language": infer_language(red_system_prompt),
+        "language": resolve_language(run_metadata, red_system_prompt),
         "prompt_version": infer_prompt_version(red_system_prompt),
         "data_version": data_version,
         "status": status,
@@ -309,6 +331,7 @@ def summarize_game(game_id, path):
         "seller_below_cost": seller_below_cost,
         "buyer_no_counter": buyer_no_counter,
         "buyer_surplus_share": buyer_surplus_share,
+        "buyer_surplus_uncond": buyer_surplus_uncond,
     }
 
 

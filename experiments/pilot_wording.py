@@ -11,7 +11,7 @@ game_id / prompt_version, not by subfolder -- there's only one condition
 per batch here, unlike the probe's per-condition subfolders).
 """
 
-import time
+import argparse
 import traceback
 
 from dotenv import load_dotenv
@@ -32,6 +32,7 @@ from games.buy_sell_game.game import BuySellGame as BuySellGameEN
 from games.buy_sell_game_zh.game import BuySellGame as BuySellGameZH
 from experiments.run_logger import append_run_log, infer_prompt_version
 from experiments.backup import backup_logs
+from experiments.throttle import add_throttle_args, throttle_from_args, BudgetExceeded
 
 load_dotenv(".env")
 
@@ -86,6 +87,7 @@ def run_one(lang, prompt_version, log_dir):
         player_social_behaviour=["", ""],
         log_dir=log_dir,
     )
+    game.language = lang
     try:
         game.run()
     except Exception:
@@ -93,36 +95,57 @@ def run_one(lang, prompt_version, log_dir):
     return game
 
 
-def main():
+def log_batch(games, lang, log_dir):
+    detected_version = infer_prompt_version(
+        games[0].players[0].conversation[0]["content"]
+    )
+    append_run_log(
+        games,
+        model=MODEL,
+        temperature=TEMPERATURE,
+        language=lang,
+        cost=COST,
+        wtp=WTP,
+        initial_resources=INITIAL_RESOURCES,
+        seller_first_offer=None,
+        prompt_version=detected_version,
+        output_dir=log_dir,
+    )
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    add_throttle_args(parser)
+    return parser.parse_args()
+
+
+def main(throttle):
     for name, prompt_version, log_dir in BATCHES:
         for lang in ("en", "zh"):
             games = []
             for rep in range(REPS):
+                try:
+                    throttle.check_before_game()
+                except BudgetExceeded as e:
+                    print(f"Stopping early: {e}")
+                    if games:
+                        log_batch(games, lang, log_dir)
+                    backup_logs()
+                    return
+                throttle.wait_for_interval()
+
                 print(
                     f"=== {name}/{lang} prompt_version={prompt_version} "
                     f"rep {rep + 1}/{REPS} ==="
                 )
-                games.append(run_one(lang, prompt_version, log_dir))
-                time.sleep(1)
+                game = run_one(lang, prompt_version, log_dir)
+                games.append(game)
+                throttle.record_game(game, MODEL)
 
-            detected_version = infer_prompt_version(
-                games[0].players[0].conversation[0]["content"]
-            )
-            append_run_log(
-                games,
-                model=MODEL,
-                temperature=TEMPERATURE,
-                language=lang,
-                cost=COST,
-                wtp=WTP,
-                initial_resources=INITIAL_RESOURCES,
-                seller_first_offer=None,
-                prompt_version=detected_version,
-                output_dir=log_dir,
-            )
+            log_batch(games, lang, log_dir)
 
     backup_logs()
 
 
 if __name__ == "__main__":
-    main()
+    main(throttle_from_args(parse_args()))

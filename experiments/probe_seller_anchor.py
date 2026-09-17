@@ -13,7 +13,7 @@ experiments/summarize.py afterwards to fold these runs into results.csv
 along with everything else already under .logs/.
 """
 
-import time
+import argparse
 import traceback
 
 from dotenv import load_dotenv
@@ -33,6 +33,7 @@ from games.buy_sell_game.game import BuySellGame as BuySellGameEN
 from games.buy_sell_game_zh.game import BuySellGame as BuySellGameZH
 from experiments.run_logger import append_run_log, infer_prompt_version
 from experiments.backup import backup_logs
+from experiments.throttle import add_throttle_args, throttle_from_args, BudgetExceeded
 
 load_dotenv(".env")
 
@@ -92,6 +93,7 @@ def run_one(lang, condition, cost, wtp, seller_first_offer):
         player_social_behaviour=["", ""],
         log_dir=f"{LOG_ROOT}/{lang}_{condition}",
     )
+    game.language = lang
     try:
         game.run()
     except Exception:
@@ -99,38 +101,57 @@ def run_one(lang, condition, cost, wtp, seller_first_offer):
     return game
 
 
-def main():
+def log_batch(games, lang, condition, cost, wtp, seller_first_offer):
+    prompt_version = infer_prompt_version(
+        games[0].players[0].conversation[0]["content"]
+    )
+    append_run_log(
+        games,
+        model=MODEL,
+        temperature=TEMPERATURE,
+        language=lang,
+        cost=cost,
+        wtp=wtp,
+        initial_resources=INITIAL_RESOURCES,
+        seller_first_offer=seller_first_offer,
+        prompt_version=prompt_version,
+        output_dir=f"{LOG_ROOT}/{lang}_{condition}",
+    )
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    add_throttle_args(parser)
+    return parser.parse_args()
+
+
+def main(throttle):
     for lang in ("en", "zh"):
         for condition, (cost, wtp, seller_first_offer) in CONDITIONS.items():
             games = []
             for rep in range(REPS):
+                try:
+                    throttle.check_before_game()
+                except BudgetExceeded as e:
+                    print(f"Stopping early: {e}")
+                    if games:
+                        log_batch(games, lang, condition, cost, wtp, seller_first_offer)
+                    backup_logs()
+                    return
+                throttle.wait_for_interval()
+
                 print(
                     f"=== {lang}/{condition} cost={cost} wtp={wtp} "
                     f"first_offer={seller_first_offer} rep {rep + 1}/{REPS} ==="
                 )
-                games.append(
-                    run_one(lang, condition, cost, wtp, seller_first_offer)
-                )
-                time.sleep(1)
+                game = run_one(lang, condition, cost, wtp, seller_first_offer)
+                games.append(game)
+                throttle.record_game(game, MODEL)
 
-            prompt_version = infer_prompt_version(
-                games[0].players[0].conversation[0]["content"]
-            )
-            append_run_log(
-                games,
-                model=MODEL,
-                temperature=TEMPERATURE,
-                language=lang,
-                cost=cost,
-                wtp=wtp,
-                initial_resources=INITIAL_RESOURCES,
-                seller_first_offer=seller_first_offer,
-                prompt_version=prompt_version,
-                output_dir=f"{LOG_ROOT}/{lang}_{condition}",
-            )
+            log_batch(games, lang, condition, cost, wtp, seller_first_offer)
 
     backup_logs()
 
 
 if __name__ == "__main__":
-    main()
+    main(throttle_from_args(parse_args()))

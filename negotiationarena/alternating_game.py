@@ -215,6 +215,10 @@ class AlternatingGame(Game):
             "completion_tokens": 0,
             "total_tokens": 0,
             "git_commit": get_git_commit(),
+            # Set by the caller (runner/probe script) via `game.language =
+            # "en"/"zh"` before .run(); the game class itself doesn't know
+            # which language it's playing in.
+            "language": getattr(self, "language", None),
         }
 
         # patrick said it was a good idea to do it this way

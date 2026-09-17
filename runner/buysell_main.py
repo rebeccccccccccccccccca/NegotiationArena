@@ -12,6 +12,7 @@ import traceback
 from games.buy_sell_game.game import BuySellGame
 from experiments.run_logger import append_run_log, infer_prompt_version
 from experiments.backup import backup_logs
+from experiments.throttle import add_throttle_args, throttle_from_args, BudgetExceeded
 
 
 load_dotenv(".env")
@@ -47,15 +48,23 @@ def parse_args():
         "check if the seller's opening-price behaviour is wording-"
         "sensitive. Never overwrites v1.",
     )
+    add_throttle_args(parser)
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
+    throttle = throttle_from_args(args)
 
     games = []
     for i in range(1):
         c = None
+        try:
+            throttle.check_before_game()
+        except BudgetExceeded as e:
+            print(f"Stopping before next game: {e}")
+            break
+        throttle.wait_for_interval()
         try:
             if args.seller_first_offer is not None:
                 a1 = FixedFirstOfferSellerAgent(
@@ -95,6 +104,7 @@ if __name__ == "__main__":
                 ],
                 log_dir=LOG_DIR,
             )
+            c.language = "en"
 
             c.run()
         except Exception as e:
@@ -109,6 +119,7 @@ if __name__ == "__main__":
         finally:
             if c is not None:
                 games.append(c)
+                throttle.record_game(c, MODEL)
 
     prompt_version = (
         infer_prompt_version(games[0].players[0].conversation[0]["content"])
