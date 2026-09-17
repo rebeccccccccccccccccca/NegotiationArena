@@ -16,8 +16,8 @@ load_dotenv(".env")
 if __name__ == "__main__":
     for i in range(1):
         try:
-            a1 = ChatGPTAgent(agent_name=AGENT_ONE, model="gpt-4-1106-preview")
-            a2 = ChatGPTAgent(agent_name=AGENT_TWO, model="gpt-4-1106-preview")
+            a1 = ChatGPTAgent(agent_name=AGENT_ONE, model="gpt-4o-mini")
+            a2 = ChatGPTAgent(agent_name=AGENT_TWO, model="gpt-4o-mini")
 
             c = BuySellGame(
                 players=[a1, a2],
@@ -36,9 +36,9 @@ if __name__ == "__main__":
                 ],
                 player_social_behaviour=[
                     "",
-                    "You are very kind and generous. Be friendly and helpful with the other player, they are your dearest friend.",
+                    "",
                 ],
-                log_dir="../example_logs_ignore/buysell",
+                log_dir=".logs/en_baseline_test",
             )
 
             c.run()
