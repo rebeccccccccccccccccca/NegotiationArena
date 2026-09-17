@@ -11,9 +11,22 @@ front of it.
 Run with: python -m streamlit run experiments/viewer.py
 """
 
+import os
+import sys
+from pathlib import Path
+
+# Make the project importable (`experiments.*`) and every path below
+# resolve correctly regardless of the working directory the process was
+# launched from -- e.g. double-clicking run_viewer.bat, or `streamlit run`
+# from some other directory, both leave cwd pointed somewhere other than
+# the repo root.
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+os.chdir(ROOT)
+
 import json
 from datetime import datetime
-from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -22,10 +35,10 @@ import streamlit as st
 from experiments import summarize
 from experiments.summarize import summarize_game, trade_price
 
-LOGS_DIR = Path(".logs")
-RESULTS_CSV = Path("experiments") / "results.csv"
-RUNS_JSONL = Path("experiments") / "runs.jsonl"
-WORKLOG_PATH = Path("experiments") / "worklog.md"
+LOGS_DIR = ROOT / ".logs"
+RESULTS_CSV = ROOT / "experiments" / "results.csv"
+RUNS_JSONL = ROOT / "experiments" / "runs.jsonl"
+WORKLOG_PATH = ROOT / "experiments" / "worklog.md"
 
 BOOL_COLS = [
     "buyer_countered_lower",
