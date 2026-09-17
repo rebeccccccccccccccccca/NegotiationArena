@@ -26,6 +26,7 @@ if str(ROOT) not in sys.path:
 os.chdir(ROOT)
 
 import json
+import time
 from datetime import datetime
 
 import matplotlib.pyplot as plt
@@ -92,9 +93,23 @@ def derive_grouping(game_id):
     return output_dir, condition
 
 
+def _read_results_csv():
+    # RESULTS_CSV lives under a OneDrive-synced folder; OneDrive's on-access
+    # sync hook can make a file we *just* finished writing look briefly
+    # empty/locked to the next reader. Retry a few times before giving up.
+    last_exc = None
+    for attempt in range(5):
+        try:
+            return pd.read_csv(RESULTS_CSV, dtype=str, keep_default_na=False)
+        except pd.errors.EmptyDataError as e:
+            last_exc = e
+            time.sleep(0.2 * (attempt + 1))
+    raise last_exc
+
+
 @st.cache_data
 def load_results_df(_cache_key):
-    df = pd.read_csv(RESULTS_CSV, dtype=str, keep_default_na=False)
+    df = _read_results_csv()
     df = df.replace("", pd.NA)
     for col in BOOL_COLS:
         if col in df.columns:
