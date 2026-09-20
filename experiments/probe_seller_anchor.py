@@ -31,7 +31,8 @@ from negotiationarena.game_objects.valuation import Valuation
 from negotiationarena.constants import *
 from games.buy_sell_game.game import BuySellGame as BuySellGameEN
 from games.buy_sell_game_zh.game import BuySellGame as BuySellGameZH
-from experiments.run_logger import append_run_log, infer_prompt_version
+from games.player_roles import player_role_declaration
+from experiments.run_logger import append_run_log
 from experiments.backup import backup_logs
 from experiments.throttle import add_throttle_args, throttle_from_args, BudgetExceeded
 
@@ -42,6 +43,8 @@ MODEL = "gpt-4o-mini-2024-07-18"
 TEMPERATURE = 0.7
 REPS = 3
 LOG_ROOT = ".logs/probe_v2"
+# Always SellerGoal/SellerGoalZH (v1) -- this probe has no v2/paraphrase option.
+PROMPT_VERSION = "v1"
 
 # condition -> (cost, wtp, seller_first_offer)
 CONDITIONS = {
@@ -55,13 +58,13 @@ def run_one(lang, condition, cost, wtp, seller_first_offer):
     if lang == "en":
         game_cls = BuySellGameEN
         seller_goal_cls, buyer_goal_cls = SellerGoal, BuyerGoal
-        red_role, blue_role = f"You are {AGENT_ONE}.", f"You are {AGENT_TWO}."
         max_tokens = 400
     else:
         game_cls = BuySellGameZH
         seller_goal_cls, buyer_goal_cls = SellerGoalZH, BuyerGoalZH
-        red_role, blue_role = f"你是 {AGENT_ONE}。", f"你是 {AGENT_TWO}。"
         max_tokens = 600
+    red_role = player_role_declaration(AGENT_ONE, lang)
+    blue_role = player_role_declaration(AGENT_TWO, lang)
 
     a1 = FixedFirstOfferSellerAgent(
         agent_name=AGENT_ONE,
@@ -94,6 +97,7 @@ def run_one(lang, condition, cost, wtp, seller_first_offer):
         log_dir=f"{LOG_ROOT}/{lang}_{condition}",
     )
     game.language = lang
+    game.prompt_version = PROMPT_VERSION
     try:
         game.run()
     except Exception:
@@ -102,9 +106,6 @@ def run_one(lang, condition, cost, wtp, seller_first_offer):
 
 
 def log_batch(games, lang, condition, cost, wtp, seller_first_offer):
-    prompt_version = infer_prompt_version(
-        games[0].players[0].conversation[0]["content"]
-    )
     append_run_log(
         games,
         model=MODEL,
@@ -114,7 +115,7 @@ def log_batch(games, lang, condition, cost, wtp, seller_first_offer):
         wtp=wtp,
         initial_resources=INITIAL_RESOURCES,
         seller_first_offer=seller_first_offer,
-        prompt_version=prompt_version,
+        prompt_version=PROMPT_VERSION,
         output_dir=f"{LOG_ROOT}/{lang}_{condition}",
     )
 

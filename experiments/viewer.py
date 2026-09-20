@@ -40,6 +40,7 @@ LOGS_DIR = ROOT / ".logs"
 RESULTS_CSV = ROOT / "experiments" / "results.csv"
 RUNS_JSONL = ROOT / "experiments" / "runs.jsonl"
 WORKLOG_PATH = ROOT / "experiments" / "worklog.md"
+PROMPT_VERSIONS_PATH = ROOT / "experiments" / "prompt_versions.json"
 
 BOOL_COLS = [
     "buyer_countered_lower",
@@ -136,6 +137,13 @@ def load_runs_df():
     if "timestamp" in df.columns:
         df = df.sort_values("timestamp", ascending=False)
     return df
+
+
+def load_prompt_versions():
+    if not PROMPT_VERSIONS_PATH.exists():
+        return []
+    with PROMPT_VERSIONS_PATH.open(encoding="utf-8") as f:
+        return json.load(f)
 
 
 def load_game_state(game_id):
@@ -342,6 +350,132 @@ def render_negotiation_tab():
         st.pyplot(fig)
 
 
+def condition_label(row):
+    offer = row["seller_first_offer"]
+    offer_str = "free" if pd.isna(offer) else str(int(offer))
+    return f"{row['language']} · cost={row['cost']} wtp={row['wtp']} offer={offer_str}"
+
+
+def render_prompt_versions_tab():
+    st.subheader("Prompt 版本")
+
+    versions = load_prompt_versions()
+    by_id = {v["version_id"]: v for v in versions}
+
+    st.markdown("#### 目前使用中的版本")
+    baseline = by_id.get("v1")
+    active = versions[-1] if versions else None
+
+    cols = st.columns(2)
+    with cols[0]:
+        st.markdown("**Baseline（v1）**")
+        if baseline:
+            st.caption(f"code_ref: {baseline['code_ref']}")
+            st.write(f"**動機**：{baseline['rationale']}")
+            st.write(f"**假設**：{baseline['hypothesis']}")
+        else:
+            st.info("prompt_versions.json 裡沒有 v1 的紀錄。")
+    with cols[1]:
+        label = active["version_id"] if active else "—"
+        st.markdown(f"**目前作用中版本（{label}，prompt_versions.json 最後一筆）**")
+        if active:
+            st.caption(f"code_ref: {active['code_ref']}")
+            st.write(f"**動機**：{active['rationale']}")
+            st.write(f"**假設**：{active['hypothesis']}")
+        else:
+            st.info("experiments/prompt_versions.json 還沒有任何版本紀錄。")
+
+    with st.expander("所有版本紀錄（experiments/prompt_versions.json）"):
+        if versions:
+            st.dataframe(pd.DataFrame(versions), width="stretch")
+        else:
+            st.info("還沒有任何版本紀錄。")
+
+    st.markdown("---")
+    st.markdown("#### 版本效果比較表")
+    st.caption(
+        "同條件（語言 × cost/wtp/賣方開價）下，各 prompt_version 的表現，"
+        "並附上跟 baseline（v1）的差異。欄位不足以算效應量（例如樣本數太小、"
+        "標準差沒存）時只呈現原始差異。"
+    )
+
+    df = load_results_df(RESULTS_CSV.stat().st_mtime if RESULTS_CSV.exists() else 0)
+    comparable = df.dropna(subset=["language", "cost", "wtp", "prompt_version"])
+
+    if comparable.empty:
+        st.info("目前沒有可比較的資料。")
+    else:
+        comparable = comparable.copy()
+        comparable["condition"] = comparable.apply(condition_label, axis=1)
+
+        rows = []
+        for (condition, pv), sub in comparable.groupby(["condition", "prompt_version"]):
+            rows.append(
+                {
+                    "condition": condition,
+                    "prompt_version": pv,
+                    "n": len(sub),
+                    "breach_A_rate": series_mean(sub["breach_A"]),
+                    "buyer_no_counter_rate": series_mean(sub["buyer_no_counter"]),
+                    "buyer_surplus_share_avg": series_mean(sub["buyer_surplus_share"]),
+                    "avg_rounds": series_mean(sub["rounds"]),
+                }
+            )
+        comp_df = pd.DataFrame(rows)
+
+        diff_cols = [
+            "breach_A_rate",
+            "buyer_no_counter_rate",
+            "buyer_surplus_share_avg",
+            "avg_rounds",
+        ]
+
+        # Diff vs baseline (v1) within each condition, via merge rather than
+        # groupby().apply() -- pandas 3.x can drop the grouping column when
+        # the applied function returns a DataFrame with the same index.
+        baseline_df = comp_df[comp_df["prompt_version"] == "v1"][
+            ["condition"] + diff_cols
+        ].rename(columns={c: f"__baseline_{c}" for c in diff_cols})
+        comp_df = comp_df.merge(baseline_df, on="condition", how="left")
+        for c in diff_cols:
+            comp_df[f"{c}_vs_baseline"] = comp_df[c] - comp_df[f"__baseline_{c}"]
+            comp_df = comp_df.drop(columns=[f"__baseline_{c}"])
+
+        st.dataframe(
+            comp_df.sort_values(["condition", "prompt_version"]), width="stretch"
+        )
+
+    st.markdown("---")
+    st.markdown("#### 單局完整 Prompt 檢視")
+
+    pv_options = sorted(df["prompt_version"].dropna().unique())
+    if not pv_options:
+        st.info("目前沒有任何局有 prompt_version。")
+        return
+
+    sel_pv = st.selectbox("prompt_version", pv_options, key="pv_tab_version")
+    sub = df[df["prompt_version"] == sel_pv]
+    sel_game_id = st.selectbox(
+        "選擇局", sorted(sub["game_id"].tolist()), key="pv_tab_game"
+    )
+    sel_role = st.radio(
+        "查看哪一方的 system prompt",
+        ["Player RED（賣方）", "Player BLUE（買方）"],
+        horizontal=True,
+        key="pv_tab_role",
+    )
+
+    if sel_game_id:
+        game = load_game_state(sel_game_id)
+        idx = 0 if "RED" in sel_role else 1
+        system_prompt = game["players"][idx]["conversation"][0]["content"]
+        st.text_area(
+            f"{sel_game_id} — {sel_role} — system prompt 原文",
+            system_prompt,
+            height=400,
+        )
+
+
 def append_worklog_note(note_text):
     today_header = f"## {datetime.now().strftime('%Y-%m-%d')}"
     content = WORKLOG_PATH.read_text(encoding="utf-8") if WORKLOG_PATH.exists() else ""
@@ -409,13 +543,17 @@ def main():
             summarize.main()
         st.session_state["results_regenerated"] = True
 
-    tab1, tab2, tab3 = st.tabs(["交易表格", "議價過程", "工作日誌"])
+    tab1, tab2, tab3, tab4 = st.tabs(
+        ["交易表格", "議價過程", "工作日誌", "Prompt 版本"]
+    )
     with tab1:
         render_results_table_tab()
     with tab2:
         render_negotiation_tab()
     with tab3:
         render_worklog_tab()
+    with tab4:
+        render_prompt_versions_tab()
 
 
 if __name__ == "__main__":

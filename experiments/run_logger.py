@@ -12,23 +12,6 @@ from datetime import datetime, timezone
 PRICING_PATH = os.path.join("experiments", "pricing.json")
 RUNS_PATH = os.path.join("experiments", "runs.jsonl")
 
-# Keep in sync with experiments/summarize.py's V1_MARKERS/V2_MARKERS/infer_prompt_version.
-V1_MARKERS = ("Never sell below cost", "絕對不要低於成本出售")
-V2_MARKERS = (
-    "Your goal is to earn as much",
-    "你的目標是從這筆交易中賺到越多",
-)
-
-
-def infer_prompt_version(red_system_prompt):
-    if not red_system_prompt:
-        return "unknown"
-    if any(marker in red_system_prompt for marker in V2_MARKERS):
-        return "v2"
-    if any(marker in red_system_prompt for marker in V1_MARKERS):
-        return "v1"
-    return "v0"
-
 
 def load_pricing():
     if not os.path.exists(PRICING_PATH):

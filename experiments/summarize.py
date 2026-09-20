@@ -69,7 +69,8 @@ V2_MARKERS = (
 )
 
 
-def infer_prompt_version(red_system_prompt):
+def detect_prompt_version_from_prompt(red_system_prompt):
+    """Text-marker fallback for logs with no run_metadata.prompt_version."""
     if not red_system_prompt:
         return "unknown"
     if any(marker in red_system_prompt for marker in V2_MARKERS):
@@ -77,6 +78,19 @@ def infer_prompt_version(red_system_prompt):
     if any(marker in red_system_prompt for marker in V1_MARKERS):
         return "v1"
     return "v0"
+
+
+def resolve_prompt_version(run_metadata, red_system_prompt):
+    """
+    Prefer the version the runner actually recorded
+    (run_metadata.prompt_version, set directly by the runner/probe/pilot
+    script -- ground truth, not a guess), same pattern as
+    resolve_language(). Older logs never recorded this, so fall back to
+    the text-marker detection above.
+    """
+    if isinstance(run_metadata, dict) and run_metadata.get("prompt_version"):
+        return run_metadata["prompt_version"]
+    return detect_prompt_version_from_prompt(red_system_prompt)
 
 
 def trade_price(trade_obj, giver):
@@ -310,7 +324,7 @@ def summarize_game(game_id, path):
         "model": blue.get("model"),
         "model_version": model_served,
         "language": resolve_language(run_metadata, red_system_prompt),
-        "prompt_version": infer_prompt_version(red_system_prompt),
+        "prompt_version": resolve_prompt_version(run_metadata, red_system_prompt),
         "data_version": data_version,
         "status": status,
         "temperature": blue.get("temperature"),

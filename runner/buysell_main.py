@@ -10,7 +10,8 @@ from negotiationarena.game_objects.valuation import Valuation
 from negotiationarena.constants import *
 import traceback
 from games.buy_sell_game.game import BuySellGame
-from experiments.run_logger import append_run_log, infer_prompt_version
+from games.player_roles import player_role_declaration
+from experiments.run_logger import append_run_log
 from experiments.backup import backup_logs
 from experiments.throttle import add_throttle_args, throttle_from_args, BudgetExceeded
 
@@ -95,8 +96,8 @@ if __name__ == "__main__":
                     Resources({MONEY_TOKEN: args.initial_resources}),
                 ],
                 player_conversation_roles=[
-                    f"You are {AGENT_ONE}.",
-                    f"You are {AGENT_TWO}.",
+                    player_role_declaration(AGENT_ONE, "en"),
+                    player_role_declaration(AGENT_TWO, "en"),
                 ],
                 player_social_behaviour=[
                     "",
@@ -105,6 +106,7 @@ if __name__ == "__main__":
                 log_dir=LOG_DIR,
             )
             c.language = "en"
+            c.prompt_version = args.prompt_version
 
             c.run()
         except Exception as e:
@@ -121,11 +123,6 @@ if __name__ == "__main__":
                 games.append(c)
                 throttle.record_game(c, MODEL)
 
-    prompt_version = (
-        infer_prompt_version(games[0].players[0].conversation[0]["content"])
-        if games
-        else None
-    )
     append_run_log(
         games,
         model=MODEL,
@@ -135,7 +132,7 @@ if __name__ == "__main__":
         wtp=WTP,
         initial_resources=args.initial_resources,
         seller_first_offer=args.seller_first_offer,
-        prompt_version=prompt_version,
+        prompt_version=args.prompt_version,
         output_dir=LOG_DIR,
     )
     backup_logs()

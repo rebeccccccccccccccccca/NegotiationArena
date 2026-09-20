@@ -30,7 +30,8 @@ from negotiationarena.game_objects.valuation import Valuation
 from negotiationarena.constants import *
 from games.buy_sell_game.game import BuySellGame as BuySellGameEN
 from games.buy_sell_game_zh.game import BuySellGame as BuySellGameZH
-from experiments.run_logger import append_run_log, infer_prompt_version
+from games.player_roles import player_role_declaration
+from experiments.run_logger import append_run_log
 from experiments.backup import backup_logs
 from experiments.throttle import add_throttle_args, throttle_from_args, BudgetExceeded
 
@@ -54,7 +55,6 @@ def run_one(lang, prompt_version, log_dir):
         game_cls = BuySellGameEN
         seller_goal_cls = SellerGoal if prompt_version == "v1" else SellerGoalV2
         buyer_goal_cls = BuyerGoal
-        red_role, blue_role = f"You are {AGENT_ONE}.", f"You are {AGENT_TWO}."
         max_tokens = 400
     else:
         game_cls = BuySellGameZH
@@ -62,8 +62,9 @@ def run_one(lang, prompt_version, log_dir):
             SellerGoalZH if prompt_version == "v1" else SellerGoalZHV2
         )
         buyer_goal_cls = BuyerGoalZH
-        red_role, blue_role = f"你是 {AGENT_ONE}。", f"你是 {AGENT_TWO}。"
         max_tokens = 600
+    red_role = player_role_declaration(AGENT_ONE, lang)
+    blue_role = player_role_declaration(AGENT_TWO, lang)
 
     a1 = ChatGPTAgent(
         agent_name=AGENT_ONE, model=MODEL, temperature=TEMPERATURE, max_tokens=max_tokens
@@ -88,6 +89,7 @@ def run_one(lang, prompt_version, log_dir):
         log_dir=log_dir,
     )
     game.language = lang
+    game.prompt_version = prompt_version
     try:
         game.run()
     except Exception:
@@ -95,10 +97,7 @@ def run_one(lang, prompt_version, log_dir):
     return game
 
 
-def log_batch(games, lang, log_dir):
-    detected_version = infer_prompt_version(
-        games[0].players[0].conversation[0]["content"]
-    )
+def log_batch(games, lang, log_dir, prompt_version):
     append_run_log(
         games,
         model=MODEL,
@@ -108,7 +107,7 @@ def log_batch(games, lang, log_dir):
         wtp=WTP,
         initial_resources=INITIAL_RESOURCES,
         seller_first_offer=None,
-        prompt_version=detected_version,
+        prompt_version=prompt_version,
         output_dir=log_dir,
     )
 
@@ -129,7 +128,7 @@ def main(throttle):
                 except BudgetExceeded as e:
                     print(f"Stopping early: {e}")
                     if games:
-                        log_batch(games, lang, log_dir)
+                        log_batch(games, lang, log_dir, prompt_version)
                     backup_logs()
                     return
                 throttle.wait_for_interval()
@@ -142,7 +141,7 @@ def main(throttle):
                 games.append(game)
                 throttle.record_game(game, MODEL)
 
-            log_batch(games, lang, log_dir)
+            log_batch(games, lang, log_dir, prompt_version)
 
     backup_logs()
 

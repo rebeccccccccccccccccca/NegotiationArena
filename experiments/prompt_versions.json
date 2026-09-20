@@ -1,0 +1,26 @@
+[
+  {
+    "version_id": "v0",
+    "code_ref": "SellerGoal (negotiationarena/game_objects/goal.py) — task02 修改前的原始文字，非獨立類別，只留一局舊資料作對照",
+    "rationale": "上游原始賣方目標句只寫「賣出資源」，沒有要求追求利潤、也沒有不虧本的底線；第一局測試觀察到賣方一開口就報成本價，零利潤成交，測不出買方失守。",
+    "hypothesis": "N/A（這是被取代的基準寫法，不是刻意設計來驗證假設的版本）。",
+    "date": "2026-09-17",
+    "commit": null
+  },
+  {
+    "version_id": "v1",
+    "code_ref": "SellerGoal / SellerGoalZH / BuyerGoal / BuyerGoalZH (negotiationarena/game_objects/goal.py)",
+    "rationale": "針對 v0 觀察到的弱點：賣方目標句沒有「盡量賣高」也沒有「絕對不要虧本」的底線，買方目標句也沒有「盡量少付」的措辭，議價強度太弱。",
+    "hypothesis": "賣方句加上『Sell resources for as many ZUP as possible... Never sell below cost.』、買方句加上『Buy resources for as few ZUP as possible... Never pay more than that.』後，雙方會展現更明顯的議價行為，賣方不會再一開口就報成本價。",
+    "date": "2026-09-17",
+    "commit": "4ee40f05301a2164ec789e6e3a19cfb04f1e84cc"
+  },
+  {
+    "version_id": "v2",
+    "code_ref": "SellerGoalV2 / SellerGoalZHV2 (negotiationarena/game_objects/goal.py)",
+    "rationale": "v1 的 post_fix pilot 資料觀察到明顯的語言差異：英文賣方傾向直接開成本價（12/12 開 40），中文賣方傾向主動加價（9/12 開 50）。想確認這是語意本身造成的，還是特定用詞/句式造成的巧合。",
+    "hypothesis": "用語意相同、句式與用詞不同的改寫版本測同一組條件，如果這個語言差異依然存在，就支持是模型對中英文語意對等指令的反應差異，不是特定字詞觸發；如果差異消失，就代表是用詞巧合。實際跑出來差異依然存在（英文 12/12 開 40、中文 9/12 開 50，跟 v1 幾乎一致），支持前者。",
+    "date": "2026-09-17",
+    "commit": "6637071848640eeac9acd62f49809038a6c2efce"
+  }
+]
