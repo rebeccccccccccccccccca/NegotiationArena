@@ -69,6 +69,8 @@ FIELDNAMES = [
 # game_state.json's `experiment`.
 EXPERIMENT_FIELDS = [
     "stage",
+    "profile",
+    "reasoning_effort",
     "run_id",
     "pair_id",
     "attempt",

@@ -7,7 +7,7 @@
 
 ## 核心事實（改程式前必讀）
 - **受測對象是買方 = `Player BLUE` = `AGENT_TWO`**（後手）。賣方 = `Player RED` = `AGENT_ONE`（先手）。所有「失守率」指標都算在 BLUE 身上。
-- **XML tag 名稱一律保持英文，不翻譯**。tag 定義在 `negotiationarena/constants.py`（`player answer`、`newly proposed trade`、`reason`、`message` 等）。`MONEY_TOKEN="ZUP"`、物品 `X`、`Player RED/BLUE` 也不翻。中文條件只翻譯 prompt 的敘述文字。
+- **XML tag 名稱一律保持英文，不翻譯**。tag 定義在 `negotiationarena/constants.py`（`player answer`、`newly proposed trade`、`reason`、`message` 等）。`MONEY_TOKEN="TWD"`（新臺幣 ISO 代碼，取代原框架虛構的 `ZUP`；兩語言都寫 `TWD`，中文不寫成「新臺幣」或「元」）、物品 `X`、`Player RED/BLUE` 也不翻。中文條件只翻譯 prompt 的敘述文字。
 - 賽局規則、勝負判定在 `games/buy_sell_game/game.py`，**不要改邏輯**；中文版是複製整個資料夾成 `games/buy_sell_game_zh/`，只改 `prompt.py`。
 - `negotiationarena/parser.py` 不改。任何 prompt 修改後都要跑一局確認 parser 仍能抓到 `<player answer>` 與 `<newly proposed trade>`。
 - 賣方施壓戰術之一是**確定性腳本賣方**（不呼叫 API），實作為 `negotiationarena/agents/scripted_seller.py`，繼承 `Agent`，`step()` 回傳符合 prompt 格式的 XML 字串。
@@ -39,7 +39,8 @@ analysis/                   CSV、統計腳本、圖表
 
 ## 技術注意
 - `requirements.txt` 的 `anthropic==0.5.0` 已廢棄，使用最新版 SDK；`claude.py` 用 `client.messages.create`。
-- temperature 0.7（沿用原論文）；中文條件 `max_tokens` 用 600（英文 400）。
+- 模型與生成參數由 `experiments/experiment_config.json` 的模型設定檔決定，預設 `luna_medium`：`gpt-6-luna`，`reasoning_effort` 固定為 medium。開啟推理時 API 只接受預設溫度 1（不可設 0.7）；輸出上限 `max_completion_tokens` 兩語言都是 8000，含推理 token，超過會直接報錯而不是截斷。
+- 前導用的 `gpt4omini` 設定維持 temperature 0.7（沿用原論文）、中文 `max_tokens` 600（英文 400）。
 - API key 在 `.env`，不 commit。
 - 每個模組完成即 commit；pilot 與正式資料收集前打 git tag（`pilot-v1`、`data-v1`）。
 

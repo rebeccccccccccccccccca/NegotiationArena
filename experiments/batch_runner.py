@@ -69,18 +69,21 @@ def stage_log_root(stage):
     return ROOT / ".logs" / stage
 
 
-def attempts_on_disk(stage):
-    """run_id -> status of every logged attempt (None if it never got one,
-    e.g. the process was killed mid-game)."""
+def attempts_on_disk(stage, profile_name):
+    """run_id -> status of every attempt logged with this model profile
+    (None if it never got one, e.g. the process was killed mid-game). The
+    same plan can be run once per profile, e.g. to compare models in a
+    pilot."""
     attempts = defaultdict(list)
     for path in stage_log_root(stage).glob("**/game_state.json"):
         try:
             d = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
-        run_id = (d.get("experiment") or {}).get("run_id")
-        if run_id:
-            attempts[run_id].append((d.get("run_metadata") or {}).get("status"))
+        experiment = d.get("experiment") or {}
+        # Logs from before profiles existed were all gpt-4o-mini.
+        if experiment.get("run_id") and experiment.get("profile", "gpt4omini") == profile_name:
+            attempts[experiment["run_id"]].append((d.get("run_metadata") or {}).get("status"))
     return attempts
 
 
@@ -92,15 +95,17 @@ def read_plan(stage):
         return list(csv.DictReader(f)), path
 
 
-def build_game(config, row, settings):
+def build_game(config, profile_name, row, settings):
     lang = row["language"]
     if row["tactic"] != "baseline":
         raise NotImplementedError(f"tactic {row['tactic']} is not implemented yet")
     seller_goal_cls, buyer_goal_cls = GOALS[(lang, row["prompt_version"])]
+    profile = config["model_profiles"][profile_name]
     agent_kwargs = dict(
-        model=config["model"],
-        temperature=config["temperature"],
-        max_tokens=config["max_tokens"][lang],
+        model=profile["model"],
+        temperature=profile["temperature"],
+        max_tokens=profile["max_tokens"][lang],
+        reasoning_effort=profile["reasoning_effort"],
     )
     seller = FixedFirstOfferSellerAgent(
         agent_name=AGENT_ONE,
@@ -109,7 +114,7 @@ def build_game(config, row, settings):
         **agent_kwargs,
     )
     buyer = ChatGPTAgent(agent_name=AGENT_TWO, **agent_kwargs)
-    log_dir = stage_log_root(row["stage"]) / f"{lang}_{row['tactic']}_{config['model_short']}"
+    log_dir = stage_log_root(row["stage"]) / f"{lang}_{row['tactic']}_{profile_name}"
     game = GAMES[lang](
         players=[seller, buyer],
         iterations=config["iterations"],
@@ -145,10 +150,17 @@ def main():
         "in each language, without calling the API",
     )
     parser.add_argument("--max-attempts", type=int, default=3)
+    parser.add_argument(
+        "--profile",
+        help="model profile from experiment_config.json (default: its "
+        "model_profile, the one formal runs use)",
+    )
     add_throttle_args(parser)
     args = parser.parse_args()
 
     config = load_config()
+    profile_name = args.profile or config["model_profile"]
+    profile = config["model_profiles"][profile_name]
     glossary = load_glossary(config)
     plan, path = read_plan(args.stage)
     cases = {c["case_id"]: c for c in load_cases(config, {r["role"] for r in plan})}
@@ -158,14 +170,16 @@ def main():
         "candidates_sha256": file_sha256(ROOT / config["candidates"]),
     }
 
-    attempts = attempts_on_disk(args.stage)
+    attempts = attempts_on_disk(args.stage, profile_name)
     pending = [
         r for r in plan if not any(s in DONE_STATUSES for s in attempts[r["run_id"]])
     ]
     exhausted = [r for r in pending if len(attempts[r["run_id"]]) >= args.max_attempts]
     todo = [r for r in pending if len(attempts[r["run_id"]]) < args.max_attempts]
     print(
-        f"{args.stage}: {len(plan)} runs in plan, {len(plan) - len(pending)} done, "
+        f"{args.stage} [{profile_name}: {profile['model']}, "
+        f"reasoning_effort={profile['reasoning_effort']}]: "
+        f"{len(plan)} runs in plan, {len(plan) - len(pending)} done, "
         f"{len(todo)} to run, {len(exhausted)} gave up after {args.max_attempts} attempts"
     )
     official = sorted(
@@ -179,7 +193,7 @@ def main():
         for lang in sorted({r["language"] for r in todo}):
             row = next(r for r in todo if r["language"] == lang)
             settings = negotiation_settings(config, cases[row["case_id"]], row["structure"], lang, glossary)
-            game = build_game(config, row, settings)
+            game = build_game(config, profile_name, row, settings)
             print(f"\n===== {row['run_id']}")
             print(json.dumps(settings, ensure_ascii=False, indent=2))
             for player in game.players:
@@ -198,7 +212,7 @@ def main():
         throttle.wait_for_interval()
 
         settings = negotiation_settings(config, cases[row["case_id"]], row["structure"], row["language"], glossary)
-        game = build_game(config, row, settings)
+        game = build_game(config, profile_name, row, settings)
         # Serialized into game_state.json with the rest of the game.
         game.experiment = {
             "run_id": row["run_id"],
@@ -210,7 +224,10 @@ def main():
             "language": row["language"],
             "rep": int(row["rep"]),
             "attempt": len(attempts[row["run_id"]]) + 1,
-            "model": config["model"],
+            "profile": profile_name,
+            "model": profile["model"],
+            "reasoning_effort": profile["reasoning_effort"],
+            "temperature": profile["temperature"],
             "iterations": config["iterations"],
             **settings,
             **hashes,
@@ -227,13 +244,13 @@ def main():
             traceback.print_exc()
         attempts[row["run_id"]].append(game.run_metadata.get("status"))
         games.append(game)
-        throttle.record_game(game, config["model"])
+        throttle.record_game(game, profile["model"])
 
     if games:
         append_run_log(
             games,
-            model=config["model"],
-            temperature=config["temperature"],
+            model=profile["model"],
+            temperature=profile["temperature"],
             language=",".join(sorted({g.language for g in games})),
             cost=None,
             wtp=None,

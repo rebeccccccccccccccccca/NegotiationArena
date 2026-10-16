@@ -32,7 +32,16 @@ class ChatGPTAgent(Agent):
         temperature=0.7,
         max_tokens=400,
         seed=None,
+        reasoning_effort=None,
     ):
+        """
+        reasoning_effort: None for non-reasoning models (gpt-4o-mini). For
+        a reasoning model (e.g. gpt-6-luna) set it to one of the values the
+        model accepts; requests then carry reasoning_effort and use
+        max_tokens as max_completion_tokens, which also has to cover the
+        hidden reasoning tokens. With reasoning on, such models only
+        accept the default temperature: pass temperature=None to omit it.
+        """
         super().__init__(agent_name)
         self.run_epoch_time_ms = str(round(time.time() * 1000))
         self.model = model
@@ -46,6 +55,7 @@ class ChatGPTAgent(Agent):
         self.client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
         self.temperature = temperature
         self.max_tokens = max_tokens
+        self.reasoning_effort = reasoning_effort
 
         # Per-call usage, accumulated for cost/token accounting in
         # game_state.json (see AlternatingGame.run()'s run_metadata).
@@ -83,16 +93,21 @@ class ChatGPTAgent(Agent):
             setattr(result, k, deepcopy(v, memo))
         return result
 
+    def request_params(self):
+        params = dict(model=self.model, messages=self.conversation, seed=self.seed)
+        if self.temperature is not None:
+            params["temperature"] = self.temperature
+        if self.reasoning_effort is None:
+            params["max_tokens"] = self.max_tokens
+        else:
+            params["max_completion_tokens"] = self.max_tokens
+            params["reasoning_effort"] = self.reasoning_effort
+        return params
+
     def chat(self):
         for attempt in range(MAX_RETRIES + 1):
             try:
-                chat = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=self.conversation,
-                    temperature=self.temperature,
-                    max_tokens=self.max_tokens,
-                    seed=self.seed,
-                )
+                chat = self.client.chat.completions.create(**self.request_params())
                 break
             except RETRYABLE_OPENAI_ERRORS:
                 self.retry_count += 1
@@ -101,11 +116,14 @@ class ChatGPTAgent(Agent):
                     continue
                 raise
 
+        details = getattr(chat.usage, "completion_tokens_details", None)
         self.usage_log.append(
             {
                 "served_model": chat.model,
                 "prompt_tokens": chat.usage.prompt_tokens,
+                # Includes reasoning_tokens for a reasoning model.
                 "completion_tokens": chat.usage.completion_tokens,
+                "reasoning_tokens": getattr(details, "reasoning_tokens", None),
             }
         )
 

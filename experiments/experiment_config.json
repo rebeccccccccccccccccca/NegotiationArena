@@ -1,9 +1,27 @@
 {
   "_comment": "Settings for experiments/batch_runner.py and experiments/plan.py. Prices are integers in TWD (MONEY_TOKEN) derived from each case's budget B (預算金額): cost C = round(B * cost_ratio), seller opening offer O = round(B * offer_ratio), buyer funds = round(B * buyer_funds_multiple). price_structures are PLACEHOLDERS (pilot ratios: wide 40/60/50, narrow 40/45/50, no_range 60/40/65) until agreed with the advisor. case_context templates are DRAFTS; the wording is the researcher's to decide.",
-  "model": "gpt-4o-mini-2024-07-18",
-  "model_short": "gpt4omini",
-  "temperature": 0.7,
-  "max_tokens": {"en": 400, "zh": 600},
+  "_comment_models": "model_profile is the one formal runs use; batch_runner --profile picks another for pilots. Both players use the same profile. Reasoning profiles: temperature null = API default (1), the only value gpt-6-luna accepts with reasoning on; max_tokens is sent as max_completion_tokens and must also cover the hidden reasoning tokens (hitting it fails the request instead of truncating). gpt-6-luna has no dated snapshot, so served model names are recorded per call.",
+  "model_profile": "luna_medium",
+  "model_profiles": {
+    "gpt4omini": {
+      "model": "gpt-4o-mini-2024-07-18",
+      "reasoning_effort": null,
+      "temperature": 0.7,
+      "max_tokens": {"en": 400, "zh": 600}
+    },
+    "luna_medium": {
+      "model": "gpt-6-luna",
+      "reasoning_effort": "medium",
+      "temperature": null,
+      "max_tokens": {"en": 8000, "zh": 8000}
+    },
+    "luna_high": {
+      "model": "gpt-6-luna",
+      "reasoning_effort": "high",
+      "temperature": null,
+      "max_tokens": {"en": 8000, "zh": 8000}
+    }
+  },
   "iterations": 20,
   "buyer_funds_multiple": 2.0,
   "offer_ceiling_ratio": 1.9,
