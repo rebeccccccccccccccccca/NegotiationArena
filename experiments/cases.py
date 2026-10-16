@@ -6,7 +6,7 @@ experiments/procurement/build_pool.py) and turns one case plus one price
 structure into the numbers a BuySellGame needs, using the ratios in
 experiments/experiment_config.json:
 
-  B (buyer willingness to pay) = the case's budget, in ZUP
+  B (buyer willingness to pay) = the case's budget, in TWD (MONEY_TOKEN)
   C (seller cost)              = round(B * cost_ratio)
   O (scripted opening offer)   = round(B * offer_ratio)
   buyer funds                  = round(B * buyer_funds_multiple)

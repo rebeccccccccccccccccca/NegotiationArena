@@ -30,14 +30,14 @@ def parse_args():
         "--initial-resources",
         type=int,
         default=100,
-        help="Player BLUE's (buyer) starting ZUP budget.",
+        help="Player BLUE's (buyer) starting money budget (MONEY_TOKEN).",
     )
     parser.add_argument(
         "--seller-first-offer",
         type=int,
         default=None,
         help="If set, Player RED's (seller) opening offer is fixed to this "
-        "ZUP amount by script instead of the model; the model plays "
+        "money amount by script instead of the model; the model plays "
         "from its second move onward.",
     )
     parser.add_argument(

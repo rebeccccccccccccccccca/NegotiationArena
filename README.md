@@ -17,9 +17,11 @@
 ## 相對原框架的修改
 | 位置 | 修改 |
 |---|---|
-| `games/buy_sell_game_zh/` | 新增，中文版賽局（複製自 `buy_sell_game/`，僅 `prompt.py` 翻譯為繁體中文；XML tag、ZUP、X、Player 名稱保留英文） |
+| `games/buy_sell_game_zh/` | 新增，中文版賽局（複製自 `buy_sell_game/`，僅 `prompt.py` 翻譯為繁體中文；XML tag、貨幣代碼、X、Player 名稱保留英文） |
+| `negotiationarena/constants.py` | 貨幣 `MONEY_TOKEN` 由虛構的 `ZUP` 改為新臺幣 ISO 代碼 `TWD`（兩語言相同）；更改前的紀錄仍為 ZUP |
+| `negotiationarena/alternating_game.py` | 賽局在任一方回覆 ACCEPT **或 REJECT** 時結束（原框架只在 ACCEPT 結束，與提示詞所述規則不符），並新增 `rejected` 狀態 |
 | `negotiationarena/agents/claude.py` | 升級至新版 Anthropic SDK |
-| `negotiationarena/agents/scripted_seller.py` | 新增，確定性腳本賣方（線性讓價，不呼叫 API） |
+| `negotiationarena/agents/scripted_seller.py` | 新增，固定首次開價的賣方（第一口價由實驗設定，第二回合起由模型議價） |
 | `experiments/` | 新增：批次 runner、指標計算、語言遵從檢測 |
 | `analysis/` | 新增：統計腳本與圖表 |
 | `CLAUDE.md` | 開發規範（給 Claude Code 與協作者） |

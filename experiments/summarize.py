@@ -14,6 +14,7 @@ import subprocess
 from collections import defaultdict
 
 from experiments.run_logger import estimate_cost
+from negotiationarena.constants import MONEY_TOKEN
 
 LOGS_DIR = ".logs"
 OUTPUT_CSV = os.path.join("experiments", "results.csv")
@@ -30,6 +31,10 @@ FIX_COMMIT = "0d38d09b"
 # that, a game with a REJECT kept going and ended as max_rounds.
 NO_DEAL_STATUSES = ("max_rounds", "rejected")
 VALID_STATUSES = ("ok",) + NO_DEAL_STATUSES
+
+# Money key in a serialized trade: the current MONEY_TOKEN (TWD), or ZUP
+# in logs from before the currency switch.
+MONEY_KEYS = (MONEY_TOKEN, "ZUP")
 
 FIELDNAMES = [
     "game_id",
@@ -115,13 +120,14 @@ def resolve_prompt_version(run_metadata, red_system_prompt):
 
 
 def trade_price(trade_obj, giver):
-    """ZUP amount `giver` (RED/BLUE) gives in a serialized Trade, or None."""
+    """Money amount `giver` (RED/BLUE) gives in a serialized Trade, or None."""
     if not isinstance(trade_obj, dict):
         return None
     side = trade_obj.get("_value", {}).get(giver)
     if not side:
         return None
-    return side.get("_value", {}).get("ZUP")
+    money = side.get("_value", {})
+    return next((money[k] for k in MONEY_KEYS if k in money), None)
 
 
 def valuation_x(val_obj):

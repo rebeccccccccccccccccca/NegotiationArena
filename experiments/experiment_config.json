@@ -1,5 +1,5 @@
 {
-  "_comment": "Settings for experiments/batch_runner.py and experiments/plan.py. Prices are integers in ZUP derived from each case's budget B (預算金額): cost C = round(B * cost_ratio), seller opening offer O = round(B * offer_ratio), buyer funds = round(B * buyer_funds_multiple). price_structures are PLACEHOLDERS (pilot ratios: wide 40/60/50, narrow 40/45/50, no_range 60/40/65) until agreed with the advisor. case_context templates are DRAFTS; the wording is the researcher's to decide.",
+  "_comment": "Settings for experiments/batch_runner.py and experiments/plan.py. Prices are integers in TWD (MONEY_TOKEN) derived from each case's budget B (預算金額): cost C = round(B * cost_ratio), seller opening offer O = round(B * offer_ratio), buyer funds = round(B * buyer_funds_multiple). price_structures are PLACEHOLDERS (pilot ratios: wide 40/60/50, narrow 40/45/50, no_range 60/40/65) until agreed with the advisor. case_context templates are DRAFTS; the wording is the researcher's to decide.",
   "model": "gpt-4o-mini-2024-07-18",
   "model_short": "gpt4omini",
   "temperature": 0.7,

@@ -14,8 +14,8 @@ from negotiationarena.constants import (
 
 
 SCRIPTED_MESSAGE_TEMPLATES = {
-    "en": "I am offering the object for {price} ZUP.",
-    "zh": "我以 {price} ZUP 出售這件物品。",
+    "en": "I am offering the object for {price} {money}.",
+    "zh": "我以 {price} {money} 出售這件物品。",
 }
 
 
@@ -51,7 +51,7 @@ class FixedFirstOfferSellerAgent(ChatGPTAgent):
 
     def _scripted_first_offer(self):
         message = SCRIPTED_MESSAGE_TEMPLATES[self.language].format(
-            price=self.first_offer
+            price=self.first_offer, money=MONEY_TOKEN
         )
         return (
             f"<{PROPOSAL_COUNT_TAG}> 1 </{PROPOSAL_COUNT_TAG}>\n"

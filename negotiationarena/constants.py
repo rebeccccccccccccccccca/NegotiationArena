@@ -1,4 +1,7 @@
-MONEY_TOKEN = "ZUP"
+# Upstream used the made-up "ZUP"; the procurement cases are priced in New
+# Taiwan dollars, so both languages use the ISO code. Logs from before the
+# switch still carry ZUP.
+MONEY_TOKEN = "TWD"
 
 RESOURCES_TAG = "my resources"
 GOALS_TAG = "my goals"

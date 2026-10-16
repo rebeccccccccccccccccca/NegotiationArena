@@ -156,6 +156,12 @@ def load_game_state(game_id):
         return json.load(f)
 
 
+def money_token(game):
+    """Currency the game was played in: TWD, or ZUP in older logs."""
+    buyer_start = game["game_state"][0]["settings"]["player_initial_resources"][1]
+    return next(iter(buyer_start.get("_value", {})), "")
+
+
 def series_mean(series):
     series = series.dropna()
     if series.empty:
@@ -195,14 +201,18 @@ def plot_seller_first_offer_dist(df):
         vals = df[df["language"] == lang]["seller_first_offer"].dropna()
         if not vals.empty:
             plotted = True
+            span = int(vals.max()) - int(vals.min())
             ax.hist(
                 vals,
-                bins=range(int(vals.min()), int(vals.max()) + 2),
+                # One bin per unit for the small pilot prices (40, 50, 65);
+                # procurement-scale prices would mean millions of bins.
+                bins=range(int(vals.min()), int(vals.max()) + 2) if span <= 200 else 30,
                 alpha=0.6,
                 label=lang,
                 color=color,
             )
-    ax.set_xlabel("Seller first offer (ZUP)")
+    # No unit: pilot games are in ZUP, procurement-case games in TWD.
+    ax.set_xlabel("Seller first offer")
     ax.set_ylabel("Count")
     if plotted:
         ax.legend()
@@ -305,6 +315,7 @@ def render_negotiation_tab():
         )
 
     game = load_game_state(game_id)
+    money = money_token(game)
 
     left, right = st.columns([2, 1])
 
@@ -322,7 +333,7 @@ def render_negotiation_tab():
             price = trade_price(trade, "BLUE")
 
             with st.chat_message("assistant" if turn == 0 else "user"):
-                st.markdown(f"**{speaker}** · {answer}" + (f" · {price} ZUP" if price is not None else ""))
+                st.markdown(f"**{speaker}** · {answer}" + (f" · {price} {money}" if price is not None else ""))
                 if message:
                     st.write(message)
                 reason = priv.get("reason") if isinstance(priv, dict) else None
@@ -349,7 +360,7 @@ def render_negotiation_tab():
         if row["wtp"] is not None:
             ax.axhline(row["wtp"], color="red", linestyle="--", label=f"WTP={row['wtp']}")
         ax.set_xlabel("Iteration")
-        ax.set_ylabel("ZUP")
+        ax.set_ylabel(money)
         ax.legend()
         st.pyplot(fig)
 
