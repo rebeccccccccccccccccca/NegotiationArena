@@ -73,8 +73,12 @@ METRIC_LABELS = [
     ("buyer_surplus_uncond", "buyer_surplus_uncond 平均", "avg"),
     ("seller_below_cost", "seller_below_cost 比例", "rate"),
     ("_max_rounds", "max_rounds 比例", "rate"),
+    ("_rejected", "rejected 比例", "rate"),
     ("_failure", "失敗率", "rate"),
 ]
+
+# Statuses of a game that ran to a clean end; anything else is a failure.
+VALID_STATUSES = ["ok", "max_rounds", "rejected"]
 
 
 def derive_grouping(game_id):
@@ -164,11 +168,11 @@ def render_metric_cards(df):
         cols = st.columns(2)
         for col, lang in zip(cols, ("en", "zh")):
             sub = df[df["language"] == lang]
-            if key == "_max_rounds":
-                value = (sub["status"] == "max_rounds").mean() if len(sub) else None
+            if key in ("_max_rounds", "_rejected"):
+                value = (sub["status"] == key[1:]).mean() if len(sub) else None
             elif key == "_failure":
                 value = (
-                    (~sub["status"].isin(["ok", "max_rounds"])).mean()
+                    (~sub["status"].isin(VALID_STATUSES)).mean()
                     if len(sub)
                     else None
                 )
@@ -210,7 +214,7 @@ def style_results_table(df):
         return "background-color: #ffb3b3" if val is True else ""
 
     def style_status(val):
-        return "background-color: #fff3b0" if val not in ("ok", "max_rounds") else ""
+        return "background-color: #fff3b0" if val not in VALID_STATUSES else ""
 
     styler = df.style
     if "breach_A" in df.columns:

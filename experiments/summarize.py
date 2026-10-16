@@ -25,6 +25,12 @@ OUTPUT_CSV = os.path.join("experiments", "results.csv")
 # pre_fix.
 FIX_COMMIT = "0d38d09b"
 
+# Statuses of a game that ran to a clean end. "rejected" exists since a
+# REJECT ends the game (negotiationarena/alternating_game.py); before
+# that, a game with a REJECT kept going and ended as max_rounds.
+NO_DEAL_STATUSES = ("max_rounds", "rejected")
+VALID_STATUSES = ("ok",) + NO_DEAL_STATUSES
+
 FIELDNAMES = [
     "game_id",
     "model",
@@ -53,6 +59,21 @@ FIELDNAMES = [
     "buyer_surplus_share",
     "buyer_surplus_uncond",
 ]
+
+# Per-game design settings that experiments/batch_runner.py stores under
+# game_state.json's `experiment`.
+EXPERIMENT_FIELDS = [
+    "stage",
+    "run_id",
+    "pair_id",
+    "attempt",
+    "case_id",
+    "category_code",
+    "structure",
+    "tactic",
+    "buyer_funds",
+]
+FIELDNAMES += EXPERIMENT_FIELDS
 
 # v1: the goal sentence introduced by task02 ("Never sell below cost." /
 # "絕對不要低於成本出售"). A log whose seller system prompt has neither
@@ -181,6 +202,7 @@ def summarize_game(game_id, path):
         None,
     )
 
+    experiment = d.get("experiment") or {}
     settings = d["game_state"][0]["settings"]
     valuations = settings["player_valuation"]
     cost = valuation_x(valuations[0])
@@ -307,16 +329,16 @@ def summarize_game(game_id, path):
     ):
         buyer_surplus_share = (wtp - final_price) / (wtp - cost)
 
-    # Same as buyer_surplus_share, but scores a clean no-deal (max_rounds)
-    # as 0 instead of leaving it blank -- an unconditional view of surplus
-    # captured that doesn't drop the (very informative) failed-to-close
-    # games from the average. Still blank when there's no real range
-    # (cost >= wtp) or the game errored (status not ok/max_rounds).
+    # Same as buyer_surplus_share, but scores a clean no-deal (max_rounds
+    # or rejected) as 0 instead of leaving it blank -- an unconditional
+    # view of surplus captured that doesn't drop the (very informative)
+    # failed-to-close games from the average. Still blank when there's no
+    # real range (cost >= wtp) or the game errored.
     buyer_surplus_uncond = None
     if cost is not None and wtp is not None and cost < wtp:
         if ok and deal and final_price is not None:
             buyer_surplus_uncond = (wtp - final_price) / (wtp - cost)
-        elif status == "max_rounds":
+        elif status in NO_DEAL_STATUSES:
             buyer_surplus_uncond = 0
 
     return {
@@ -346,6 +368,8 @@ def summarize_game(game_id, path):
         "buyer_no_counter": buyer_no_counter,
         "buyer_surplus_share": buyer_surplus_share,
         "buyer_surplus_uncond": buyer_surplus_uncond,
+        # Set by experiments/batch_runner.py; blank for pilot/probe games.
+        **{col: experiment.get(col) for col in EXPERIMENT_FIELDS},
     }
 
 
@@ -372,10 +396,10 @@ def main():
     for row in rows:
         bucket = by_lang[row["language"]]
         bucket["n"] += 1
-        if row["status"] not in ("ok", "max_rounds"):
+        if row["status"] not in VALID_STATUSES:
             bucket["failed"] += 1
 
-    print("\nFailure rate by language (status not in ok/max_rounds):")
+    print(f"\nFailure rate by language (status not in {'/'.join(VALID_STATUSES)}):")
     for lang in sorted(by_lang):
         n = by_lang[lang]["n"]
         failed = by_lang[lang]["failed"]

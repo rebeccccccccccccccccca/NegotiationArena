@@ -55,7 +55,9 @@ def append_run_log(
     metadatas = [getattr(g, "run_metadata", {}) for g in games]
     n_games = len(games)
     n_failed = sum(
-        1 for m in metadatas if m.get("status") not in ("ok", "max_rounds")
+        1
+        for m in metadatas
+        if m.get("status") not in ("ok", "max_rounds", "rejected")
     )
     total_prompt_tokens = sum(m.get("prompt_tokens", 0) for m in metadatas)
     total_completion_tokens = sum(

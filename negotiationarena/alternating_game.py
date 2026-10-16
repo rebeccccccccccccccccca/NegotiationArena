@@ -1,7 +1,7 @@
 import os
 import time
 import json
-from negotiationarena.constants import ACCEPTING_TAG
+from negotiationarena.constants import ACCEPTING_TAG, REJECTION_TAG
 import inspect
 from pathlib import Path
 from typing import List
@@ -277,9 +277,10 @@ class AlternatingGame(Game):
                     if self.game_state[-1].get("current_iteration") == "END"
                     else None
                 )
-                self.run_metadata["status"] = (
-                    "ok" if final_response == ACCEPTING_TAG else "max_rounds"
-                )
+                self.run_metadata["status"] = {
+                    ACCEPTING_TAG: "ok",
+                    REJECTION_TAG: "rejected",
+                }.get(final_response, "max_rounds")
                 self._collect_usage()
                 self.log_state()
                 return
@@ -377,7 +378,10 @@ class AlternatingGameEndsOnTag(AlternatingGame):
             iterations=iterations,
         )
 
-        self.end_tag = ACCEPTING_TAG
+        # Upstream ended only on ACCEPT, although the prompt tells both
+        # players that ACCEPT or REJECT ends the game; a REJECT now ends it
+        # too, so the engine plays by the rules the players are given.
+        self.end_tags = (ACCEPTING_TAG, REJECTION_TAG)
 
     def game_over(self):
         """
@@ -388,7 +392,7 @@ class AlternatingGameEndsOnTag(AlternatingGame):
             response = state["player_public_info_dict"].get(PLAYER_ANSWER_TAG)
             # TODO: this is pretty buggy
             iteration = state.get("current_iteration", 0)
-            if response == self.end_tag or iteration == self.iterations:
+            if response in self.end_tags or iteration == self.iterations:
                 return True
 
         return False

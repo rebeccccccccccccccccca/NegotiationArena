@@ -1,0 +1,92 @@
+{
+  "source": "政府電子採購網 https://web.pcc.gov.tw, award notices (決標公告) retrieved through the g0v pcc API",
+  "api_base": "https://pcc-api.openfun.app/api",
+  "category_list_url": "https://web.pcc.gov.tw/osm/public/proctrg/download/CpcOpenData.xml",
+  "frame": {
+    "notice_type": "決標公告",
+    "date_field": "決標公告日期 (announcement date, not award date)",
+    "from": "2025-10-01",
+    "to": "2026-09-30",
+    "n_notices": 172290,
+    "weekdays_without_notices": [
+      "20251006",
+      "20251010",
+      "20251024",
+      "20251225",
+      "20260101",
+      "20260216",
+      "20260217",
+      "20260218",
+      "20260219",
+      "20260220",
+      "20260227",
+      "20260403",
+      "20260406",
+      "20260501",
+      "20260619",
+      "20260624",
+      "20260925",
+      "20260928"
+    ],
+    "fetched_on": "2026-10-16"
+  },
+  "sample": {
+    "seed": 20261016,
+    "per_month": 250,
+    "n_ids": 3000
+  },
+  "details": {
+    "n_fetched": 3000,
+    "n_failed": 0,
+    "fetched_from": "2026-10-16T11:20:32",
+    "fetched_to": "2026-10-16T14:40:54"
+  },
+  "created_at": "2026-10-16T14:42:10",
+  "files": [
+    {
+      "path": "data/procurement/raw/CpcOpenData.xml",
+      "bytes": 114492,
+      "sha256": "131182195a9ac7905c07e456564d878f692ca4b0afae1d0ff05e865aed223c7a"
+    },
+    {
+      "path": "data/procurement/raw/frame_dates_done.txt",
+      "bytes": 3640,
+      "sha256": "ec7dbd7b70f1cf71fbc32fe7c9b9b2199915c5a4e486283dd3bbf280afa100ab"
+    },
+    {
+      "path": "data/procurement/raw/award_frame.jsonl",
+      "bytes": 38287670,
+      "sha256": "aefcbee90e8a9696ecf7495a308ef973bf16ce5cff5d17e75f43b2bba9b8c539"
+    },
+    {
+      "path": "data/procurement/sample_ids.csv",
+      "bytes": 445710,
+      "sha256": "d607a292b3b311d59af669c6464ce1e0df73c7dfc0b4a43b4398a0e66fe3e95a"
+    },
+    {
+      "path": "data/procurement/raw/award_details.jsonl",
+      "bytes": 21749501,
+      "sha256": "8baf7e659db3b4c2d38a9e680824a500c63c4150970c2937a25c80cedc343055"
+    }
+  ],
+  "backup": {
+    "path": "backups/procurement_raw_20261016_1442.zip",
+    "bytes": 11381203,
+    "sha256": "4de520dcd9b29f7d8a6a7a53191b450888ccf09a92148cbc4c8d6767965d9a19"
+  },
+  "pool_rules": {
+    "path": "data/procurement/pool_rules.json",
+    "bytes": 765,
+    "sha256": "bf42995de3d7efde2c1ccdd735d9c4f2b8e361e6888b2cf208b5dbafddfe4b76",
+    "frozen": false,
+    "rules": {
+      "frozen": false,
+      "seed": 20261016,
+      "roles": "calibration:10,stage1_2:40,stage3:40,wording:20,reserve:10",
+      "category_whitelist": [],
+      "amount_tiers": [],
+      "budget_min": null,
+      "budget_max": null
+    }
+  }
+}

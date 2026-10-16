@@ -1,54 +1,78 @@
 ﻿category_code,name_zh,name_en,in_whitelist,n_passed_base,n_eligible,budget_min,budget_p25,budget_median,budget_p75,budget_max,n_未達公告金額,n_公告金額以上未達查核金額,n_查核金額以上未達巨額,n_巨額
-ALL,,,,186,186,101378.0,501000.0,1200000.0,3800000.0,47000000.0,105,80,1,0
-481,"醫療, 外科及矯形設備",Medical and surgical equipment and orthopaedic appliances,,25,25,265000.0,530000.0,950000.0,2829000.0,9996000.0,16,9,0,0
-32,"紙漿,紙及紙產品;印刷品及相關的商品","Pulp, paper and paper products; printed matter and related articles",,20,20,168360.0,588825.0,770111.0,3644536.25,31500000.0,12,7,1,0
-452,計算機及其零件與配件,Computing machinery and parts and accessories thereof (for ADP),,14,14,230000.0,342000.0,535000.0,1421250.0,24700000.0,11,3,0,0
-482,做為測量、檢查、航行及其他目的用之儀器和裝置，除光學儀器; 工業程序控制設備; 上述各項之零件及附件,"Instruments and appliances for measuring checking, testing, navigating and other purposes, except optical instruments; industrial process control equipment; parts and accessories thereof",,13,13,272000.0,1238328.0,2695000.0,4641000.0,9313500.0,5,8,0,0
-449,其他特殊用途之機具及其零件,Other special purpose machinery and parts thereof,,8,8,550600.0,1428570.0,4898065.0,6793765.5,14000000.0,3,5,0,0
-462,電力傳輸、控制設備及其零件,"Electricity distribution and control apparatus, and parts thereof",,6,6,300000.0,1723983.25,3660716.5,18198250.0,24150000.0,1,5,0,0
-47,"收音機、電視, 通訊器材及儀器","Radio, television and communication equipment and apparatus",,5,5,299950.0,970000.0,1070000.0,1670000.0,2500000.0,3,2,0,0
-469,其他電力設備及零件,Other electrical equipment and parts thereof,,5,5,231650.0,1480000.0,1484000.0,6237000.0,12730000.0,3,2,0,0
-23,"穀粉, 澱粉及澱粉製品; 其他食品","Grain mill products, starches and starch products; other food products",,4,4,320000.0,583077.5,739408.0,964184.5,1432600.0,3,1,0,0
-389,其他製造商品,Other manufactured articles n.e.c.,,4,4,396000.0,702488.25,1208830.5,2159757.5,3800000.0,2,2,0,0
-4391,氣體產生器; 蒸餾設備; 冷凍及空調設備; 過濾機具,Gas generators; distilling plant; air conditioning and refrigerating equipment; filtering machinery,,4,4,1298600.0,2417250.5,3752936.5,5400554.25,7455000.0,1,3,0,0
-27,除服裝以外之紡織品,Textile articles other than apparel,,3,3,219000.0,231885.0,244770.0,3074885.0,5905000.0,2,1,0,0
-451,辦公室及會計機器，其零件及附件,"Office and accounting machinery, and parts and accessories thereof",,3,3,320000.0,660000.0,1000000.0,1081350.0,1162700.0,2,1,0,0
-465,燈絲電燈泡或放電式燈泡；弧光燈；照明設備；上述各項之零件,Electric filament or discharge lamps; arc lamps; lighting equipment; parts thereof,,3,3,404000.0,444000.0,484000.0,842000.0,1200000.0,3,0,0,0
-384,運動商品,Sports goods,,3,3,650980.0,1068815.0,1486650.0,2713720.0,3940790.0,2,1,0,0
-442,"工具機, 其零件及附件",Machine-tools and parts and accessories thereof,,3,3,220000.0,222400.0,224800.0,1762400.0,3300000.0,2,1,0,0
-282,"成衣, 毛皮服裝除外","Wearing apparel, except fur apparel",,3,3,219700.0,627237.5,1034775.0,2242387.5,3450000.0,2,1,0,0
+ALL,,,,586,586,101378.0,464266.0,1102158.0,3300000.0,1169772623.0,345,234,5,2
+481,"醫療, 外科及矯形設備",Medical and surgical equipment and orthopaedic appliances,,61,61,168000.0,530000.0,1350000.0,3800000.0,35980000.0,33,28,0,0
+452,計算機及其零件與配件,Computing machinery and parts and accessories thereof (for ADP),,47,47,195000.0,356800.0,840000.0,1780000.0,66150000.0,33,12,2,0
+32,"紙漿,紙及紙產品;印刷品及相關的商品","Pulp, paper and paper products; printed matter and related articles",,47,47,156420.0,301031.0,596000.0,855672.0,31500000.0,37,9,1,0
+482,做為測量、檢查、航行及其他目的用之儀器和裝置，除光學儀器; 工業程序控制設備; 上述各項之零件及附件,"Instruments and appliances for measuring checking, testing, navigating and other purposes, except optical instruments; industrial process control equipment; parts and accessories thereof",,39,39,221000.0,830854.5,2695000.0,4919413.5,47799990.0,15,24,0,0
+449,其他特殊用途之機具及其零件,Other special purpose machinery and parts thereof,,27,27,210800.0,706291.0,2037500.0,5777442.0,30000000.0,12,15,0,0
+389,其他製造商品,Other manufactured articles n.e.c.,,20,20,163800.0,465645.0,747746.0,1895735.75,10000000.0,14,6,0,0
+282,"成衣, 毛皮服裝除外","Wearing apparel, except fur apparel",,18,18,180000.0,260000.0,811000.0,2130582.5,5566850.0,13,5,0,0
+462,電力傳輸、控制設備及其零件,"Electricity distribution and control apparatus, and parts thereof",,18,18,300000.0,1130625.0,4871500.0,22574731.0,163225612.0,5,11,1,1
+381,傢具,Furniture,,18,18,185500.0,466437.5,850348.0,2301378.75,7927465.0,11,7,0,0
+4393,其他通用機具,General purpose machinery n.e.c.,,18,18,149600.0,504973.5,983975.0,1434227.5,3300000.0,13,5,0,0
+21,"肉類, 魚, 果實, 蔬菜,及油脂","Meat, fish, fruit, vegetables, oils and fats",,17,17,346368.0,630000.0,1400000.0,4900760.0,14703800.0,10,7,0,0
+47,"收音機、電視, 通訊器材及儀器","Radio, television and communication equipment and apparatus",,16,16,299950.0,595000.0,1258462.5,1963750.0,4850000.0,10,6,0,0
+421,結構金屬產品及其零件,Structural metal products and parts thereof,,15,15,226485.0,522000.0,1200000.0,6204780.0,40889318.0,8,7,0,0
+34,基本化學產品,Basic chemicals,,15,15,236500.0,372980.0,945000.0,6651666.5,1169772623.0,9,4,1,1
+469,其他電力設備及零件,Other electrical equipment and parts thereof,,13,13,231650.0,658000.0,1470000.0,6237000.0,34920000.0,9,4,0,0
+23,"穀粉, 澱粉及澱粉製品; 其他食品","Grain mill products, starches and starch products; other food products",,13,13,182952.0,336000.0,808046.0,1470000.0,13083000.0,9,4,0,0
+4391,氣體產生器; 蒸餾設備; 冷凍及空調設備; 過濾機具,Gas generators; distilling plant; air conditioning and refrigerating equipment; filtering machinery,,12,12,300000.0,1119240.0,2595067.0,5907000.0,32826360.0,4,8,0,0
+432,"幫浦, 壓縮機, 液壓與氣動引擎, 閥門及其零件","Pumps, compressors, hydraulic and pneumatic power engines, and valves, and parts thereof",,10,10,105458.0,511875.0,2341000.0,6597412.5,30784215.0,4,6,0,0
+491,"機動車, 拖車, 半拖車; 車輛機件","Motor vehicles, trailers and semi- trailers; parts and accessories thereof",,10,10,213000.0,2362500.0,6687500.0,8126250.0,48000000.0,2,8,0,0
+483,"光學儀器, 攝影設備及其零件與附件","Optical instruments and photographic equipment, and parts and accessories thereof",,9,9,230000.0,537559.0,683202.0,959700.0,9447900.0,8,1,0,0
+448,家用電器及其零件,Domestic appliances and parts thereof,,9,9,228716.0,775000.0,1200000.0,2660000.0,4154000.0,5,4,0,0
+31,"木製品, 軟木製品, 草及編結材料產品","Products of wood, cork, straw and plaiting materials",,9,9,180000.0,599400.0,750000.0,1104316.0,4300000.0,7,2,0,0
+384,運動商品,Sports goods,,7,7,195556.0,306000.0,650980.0,1293325.0,3940790.0,6,1,0,0
+461,"電動機, 發電機, 變壓器及其附件","Electric motors, generators and transformers, and parts thereof",,6,6,446250.0,633837.5,1988500.0,3500250.0,4357500.0,3,3,0,0
+499,其他運輸設備及其零件,Other transport equipment and parts thereof,,6,6,756900.0,1203746.25,1905842.5,2569250.0,4435409.0,2,4,0,0
+01,"農業, 園藝及市場園藝產品","Products of agriculture, horticulture and market gardening",,5,5,501000.0,810000.0,1268000.0,1820000.0,24750000.0,2,3,0,0
+429,其他預鑄金屬產品,Other fabricated metal products,,5,5,345000.0,4000000.0,5044620.0,14437467.0,41631911.0,1,4,0,0
+442,"工具機, 其零件及附件",Machine-tools and parts and accessories thereof,,5,5,220000.0,224800.0,1470000.0,3300000.0,6427017.0,3,2,0,0
+29,"皮革與皮革品, 鞋靴",Leather and leather products; footwear,,4,4,408900.0,499725.0,1266300.0,6926950.0,21700000.0,2,2,0,0
+465,燈絲電燈泡或放電式燈泡；弧光燈；照明設備；上述各項之零件,Electric filament or discharge lamps; arc lamps; lighting equipment; parts thereof,,4,4,404000.0,464000.0,842000.0,1475000.0,2300000.0,3,1,0,0
+26,"紗及線, 編織及簇織飾物",Yarn and thread; woven and tufted textile fabrics,,4,4,210000.0,228750.0,566250.0,929375.0,1025000.0,3,1,0,0
+27,除服裝以外之紡織品,Textile articles other than apparel,,4,4,219000.0,238327.5,547385.0,2113750.0,5905000.0,3,1,0,0
+412,"滾壓, 拉拔, 摺疊製鋼鐵製品","Rolled, drawn and folded products of iron and steel",,4,4,798024.0,1719853.5,3591315.0,12669120.5,35209982.0,1,3,0,0
+385,遊戲及玩具,Games and toys,,4,4,217860.0,412181.25,513477.5,599648.25,748593.0,4,0,0,0
 363,塑料半製品,Semi-manufactures of plastics,,3,3,210000.0,210075.0,210150.0,225069.0,239988.0,3,0,0,0
-21,"肉類, 魚, 果實, 蔬菜,及油脂","Meat, fish, fruit, vegetables, oils and fats",,3,3,1344215.0,1557563.5,1770912.0,3549425.0,5327938.0,1,2,0,0
-34,基本化學產品,Basic chemicals,,3,3,282870.0,302735.0,322600.0,3937966.5,7553333.0,2,1,0,0
-461,"電動機, 發電機, 變壓器及其附件","Electric motors, generators and transformers, and parts thereof",,3,3,446250.0,532350.0,618450.0,2487975.0,4357500.0,2,1,0,0
-381,傢具,Furniture,,3,3,360000.0,463250.0,566500.0,579548.0,592596.0,3,0,0,0
-4393,其他通用機具,General purpose machinery n.e.c.,,3,3,895950.0,983975.0,1072000.0,2186000.0,3300000.0,2,1,0,0
-448,家用電器及其零件,Domestic appliances and parts thereof,,2,2,964000.0,1473000.0,1982000.0,2491000.0,3000000.0,1,1,0,0
-33,煉焦爐產品；精煉石油產品；核燃料,Coke oven products; refined petroleum products; nuclear fuel,,2,2,4845000.0,6633750.0,8422500.0,10211250.0,12000000.0,0,2,0,0
-429,其他預鑄金屬產品,Other fabricated metal products,,2,2,14437467.0,21236078.0,28034689.0,34833300.0,41631911.0,0,2,0,0
-434,"烤箱, 熔爐燃燒器及其零件",Ovens and furnace burners and parts thereof,,2,2,1785000.0,3281250.0,4777500.0,6273750.0,7770000.0,0,2,0,0
+17,"電力, 瓦斯, 蒸氣及熱水","Electricity, town gas, steam and hot water",,3,3,175070.0,276185.0,377300.0,1588650.0,2800000.0,2,1,0,0
+451,辦公室及會計機器，其零件及附件,"Office and accounting machinery, and parts and accessories thereof",,3,3,320000.0,660000.0,1000000.0,1081350.0,1162700.0,2,1,0,0
+423,蒸汽產生器(中央暖氣鍋爐除外)及其零件,"Steam generators, (except central heating boilers) and parts thereof",,3,3,450000.0,596500.0,743000.0,947498.5,1151997.0,3,0,0,0
+532,建地及相關土地,Built-up and related land,,3,3,1755000.0,1906290.0,2057580.0,4268790.0,6480000.0,0,3,0,0
+373,耐火產品及結構性非耐火黏土產品,Refractory products and structural non-refractory clay products,,3,3,621110.0,883697.5,1146285.0,1203142.5,1260000.0,3,0,0,0
+411,基本的鐵與鋼,Basic iron and steel,,3,3,337400.0,2667572.5,4997745.0,12998872.5,21000000.0,1,2,0,0
+371,玻璃及玻璃產品,Glass and glass products,,3,3,360000.0,450325.0,540650.0,720641.0,900632.0,3,0,0,0
 495,鐵路及電車軌道之機車及其零件,"Railway and tramway locomotives and rolling stock, and parts thereof",,2,2,660000.0,1145000.0,1630000.0,2115000.0,2600000.0,1,1,0,0
-373,耐火產品及結構性非耐火黏土產品,Refractory products and structural non-refractory clay products,,2,2,621110.0,752403.75,883697.5,1014991.25,1146285.0,2,0,0,0
-421,結構金屬產品及其零件,Structural metal products and parts thereof,,2,2,226485.0,262027.5,297570.0,333112.5,368655.0,2,0,0,0
-491,"機動車, 拖車, 半拖車; 車輛機件","Motor vehicles, trailers and semi- trailers; parts and accessories thereof",,2,2,476000.0,9357000.0,18238000.0,27119000.0,36000000.0,1,1,0,0
-412,"滾壓, 拉拔, 摺疊製鋼鐵製品","Rolled, drawn and folded products of iron and steel",,2,2,798024.0,9401013.5,18004003.0,26606992.5,35209982.0,1,1,0,0
-499,其他運輸設備及其零件,Other transport equipment and parts thereof,,2,2,1784685.0,2026013.75,2267342.5,2508671.25,2750000.0,0,2,0,0
-411,基本的鐵與鋼,Basic iron and steel,,2,2,4997745.0,8998308.75,12998872.5,16999436.25,21000000.0,0,2,0,0
-423,蒸汽產生器(中央暖氣鍋爐除外)及其零件,"Steam generators, (except central heating boilers) and parts thereof",,2,2,450000.0,625499.25,800998.5,976497.75,1151997.0,2,0,0,0
-432,"幫浦, 壓縮機, 液壓與氣動引擎, 閥門及其零件","Pumps, compressors, hydraulic and pneumatic power engines, and valves, and parts thereof",,2,2,2960000.0,5407590.0,7855180.0,10302770.0,12750360.0,0,2,0,0
-422,"鐵, 鋼或鋁製大桶、水箱及容器","Tanks, reservoirs and containers of iron, steel or aluminium",,1,1,101378.0,101378.0,101378.0,101378.0,101378.0,1,0,0,0
+434,"烤箱, 熔爐燃燒器及其零件",Ovens and furnace burners and parts thereof,,2,2,1785000.0,3281250.0,4777500.0,6273750.0,7770000.0,0,2,0,0
+435,"吊車,操作處理設備及其零件",Lifting and handling equipment and parts thereof,,2,2,504000.0,628000.0,752000.0,876000.0,1000000.0,2,0,0,0
+433,"軸承, 齒輪, 傳動裝置, 驅動元件及其零件","Bearings, gears, gearing and driving elements, and parts thereof",,2,2,2100000.0,3491093.0,4882186.0,6273279.0,7664372.0,0,2,0,0
+463,"絕緣電線, 電纜及光纖電纜",Insulated wire and cable; optical fibre cables,,2,2,365000.0,2137237.5,3909475.0,5681712.5,7453950.0,1,1,0,0
+386,遊樂場迴轉臺、鞦韆臺、射擊場及其他遊樂場之娛樂設備,"Roundabouts, swings, shooting galleries and other fairground amusements",,2,2,257000.0,298000.0,339000.0,380000.0,421000.0,2,0,0,0
+445,"食品, 飲料及菸草處理之機具及其零件","Machinery for food, beverage and tobacco processing, and parts thereof",,2,2,514500.0,585875.0,657250.0,728625.0,800000.0,2,0,0,0
+383,樂器,Musical instruments,,2,2,190000.0,236250.0,282500.0,328750.0,375000.0,2,0,0,0
+33,煉焦爐產品；精煉石油產品；核燃料,Coke oven products; refined petroleum products; nuclear fuel,,2,2,4845000.0,6633750.0,8422500.0,10211250.0,12000000.0,0,2,0,0
 496,"航空器, 太空船及其零件","Aircraft and spacecraft, and parts thereof",,1,1,1600000.0,1600000.0,1600000.0,1600000.0,1600000.0,0,1,0,0
-383,樂器,Musical instruments,,1,1,375000.0,375000.0,375000.0,375000.0,375000.0,1,0,0,0
-445,"食品, 飲料及菸草處理之機具及其零件","Machinery for food, beverage and tobacco processing, and parts thereof",,1,1,800000.0,800000.0,800000.0,800000.0,800000.0,1,0,0,0
-435,"吊車,操作處理設備及其零件",Lifting and handling equipment and parts thereof,,1,1,504000.0,504000.0,504000.0,504000.0,504000.0,1,0,0,0
-18,水,Water,,1,1,308490.0,308490.0,308490.0,308490.0,308490.0,1,0,0,0
 354,未明列於其他章節之化學產品,Chemical products n.e.c.,,1,1,47000000.0,47000000.0,47000000.0,47000000.0,47000000.0,0,1,0,0
 464,蓄電池、一次性電池及其零件,"Accumulators, primary cells and primary batteries, and parts thereof",,1,1,934500.0,934500.0,934500.0,934500.0,934500.0,1,0,0,0
-532,建地及相關土地,Built-up and related land,,1,1,6480000.0,6480000.0,6480000.0,6480000.0,6480000.0,0,1,0,0
-283,鞣製或硝製毛皮；人造毛皮及其製品（帽類除外）,Tanned or dressed furskins and artificial fur; articles thereof (except headgear),,1,1,500000.0,500000.0,500000.0,500000.0,500000.0,1,0,0,0
-386,遊樂場迴轉臺、鞦韆臺、射擊場及其他遊樂場之娛樂設備,"Roundabouts, swings, shooting galleries and other fairground amusements",,1,1,421000.0,421000.0,421000.0,421000.0,421000.0,1,0,0,0
+18,水,Water,,1,1,308490.0,308490.0,308490.0,308490.0,308490.0,1,0,0,0
+422,"鐵, 鋼或鋁製大桶、水箱及容器","Tanks, reservoirs and containers of iron, steel or aluminium",,1,1,101378.0,101378.0,101378.0,101378.0,101378.0,1,0,0,0
 24,飲料,Beverages,,1,1,550000.0,550000.0,550000.0,550000.0,550000.0,1,0,0,0
+415,"銅, 鎳, 鋁, 氧化鋁, 鉛,鋅及錫或其合金之半製品","Semi-finished products of copper, nickel, aluminium, lead, zinc and tin or their alloys",,1,1,4900000.0,4900000.0,4900000.0,4900000.0,4900000.0,0,1,0,0
 441,農業或林業機具及其零件,Agricultural or forestry machinery and parts thereof,,1,1,1500000.0,1500000.0,1500000.0,1500000.0,1500000.0,0,1,0,0
-01,"農業, 園藝及市場園藝產品","Products of agriculture, horticulture and market gardening",,1,1,24750000.0,24750000.0,24750000.0,24750000.0,24750000.0,0,1,0,0
-29,"皮革與皮革品, 鞋靴",Leather and leather products; footwear,,1,1,2002600.0,2002600.0,2002600.0,2002600.0,2002600.0,0,1,0,0
-17,"電力, 瓦斯, 蒸氣及熱水","Electricity, town gas, steam and hot water",,1,1,2800000.0,2800000.0,2800000.0,2800000.0,2800000.0,0,1,0,0
+283,鞣製或硝製毛皮；人造毛皮及其製品（帽類除外）,Tanned or dressed furskins and artificial fur; articles thereof (except headgear),,1,1,500000.0,500000.0,500000.0,500000.0,500000.0,1,0,0,0
+493,船舶,Ships,,1,1,4371500.0,4371500.0,4371500.0,4371500.0,4371500.0,0,1,0,0
+02,活的動物及動物產品,Live animals and animal products,,1,1,320000.0,320000.0,320000.0,320000.0,320000.0,1,0,0,0
+431,"引擎, 渦輪及其零件",Engines and turbines and parts thereof,,1,1,2205000.0,2205000.0,2205000.0,2205000.0,2205000.0,0,1,0,0
+375,"混凝土, 水泥及灰泥商品","Articles of concrete, cement and plaster",,1,1,319935.0,319935.0,319935.0,319935.0,319935.0,1,0,0,0
+362,其他橡膠產品,Other rubber products,,1,1,1400000.0,1400000.0,1400000.0,1400000.0,1400000.0,1,0,0,0
+387,建築預製結構,Prefabricated buildings,,1,1,620000.0,620000.0,620000.0,620000.0,620000.0,1,0,0,0
+531,"農業地, 林業地及其他林地","Agricultural land, forest and other wooded land",,1,1,4683630.0,4683630.0,4683630.0,4683630.0,4683630.0,0,1,0,0
+15,"石材, 砂及泥土","Stone, sand and clay",,1,1,988024.0,988024.0,988024.0,988024.0,988024.0,1,0,0,0
+446,"製造紡織品, 服裝及皮革產品之機具及其零件","Machinery for textile, apparel and leather production, and parts thereof",,1,1,570000.0,570000.0,570000.0,570000.0,570000.0,1,0,0,0
+494,娛樂及運動用船舶,Pleasure and sporting boats,,1,1,3370000.0,3370000.0,3370000.0,3370000.0,3370000.0,0,1,0,0
+22,牛奶品,Dairy products,,1,1,2688000.0,2688000.0,2688000.0,2688000.0,2688000.0,0,1,0,0
+416,其他非鐵金屬及其製品（包括廢料及碎料）；瓷金及其製品；含金屬或其化合物之灰末及渣滓（不包括煉製鋼鐵所產生者）,"Other non-ferrous metals and articles thereof (including waste and scrap); cermets and articles thereof; ash and residue (except from the manufacture of iron or steel), containing metals or metallic compounds",,1,1,1111530.0,1111530.0,1111530.0,1111530.0,1111530.0,1,0,0,0
+413,基本貴金屬及包覆貴金屬之金屬,Basic precious metals and metals clad with precious metals,,1,1,19707000.0,19707000.0,19707000.0,19707000.0,19707000.0,0,1,0,0
+353,"肥皂, 清潔劑, 香水及盥洗用品","Soap, cleaning preparations, perfumes and toilet preparations",,1,1,297000.0,297000.0,297000.0,297000.0,297000.0,1,0,0,0
+364,塑料製包裝產品,Packaging products of plastics,,1,1,600000.0,600000.0,600000.0,600000.0,600000.0,1,0,0,0
+372,非結構性陶瓷製品,Non-structural ceramic ware,,1,1,3000000.0,3000000.0,3000000.0,3000000.0,3000000.0,0,1,0,0

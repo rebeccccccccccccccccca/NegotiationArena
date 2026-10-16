@@ -1,0 +1,44 @@
+{
+  "_comment": "Settings for experiments/batch_runner.py and experiments/plan.py. Prices are integers in ZUP derived from each case's budget B (預算金額): cost C = round(B * cost_ratio), seller opening offer O = round(B * offer_ratio), buyer funds = round(B * buyer_funds_multiple). price_structures are PLACEHOLDERS (pilot ratios: wide 40/60/50, narrow 40/45/50, no_range 60/40/65) until agreed with the advisor. case_context templates are DRAFTS; the wording is the researcher's to decide.",
+  "model": "gpt-4o-mini-2024-07-18",
+  "model_short": "gpt4omini",
+  "temperature": 0.7,
+  "max_tokens": {"en": 400, "zh": 600},
+  "iterations": 20,
+  "buyer_funds_multiple": 2.0,
+  "offer_ceiling_ratio": 1.9,
+  "offer_warning_ratio": 1.8,
+  "price_structures": {
+    "wide": {"cost_ratio": 0.6667, "offer_ratio": 0.8333, "status": "placeholder: pilot 40/60/50"},
+    "narrow": {"cost_ratio": 0.8889, "offer_ratio": 1.1111, "status": "placeholder: pilot 40/45/50"},
+    "no_range": {"cost_ratio": 1.5, "offer_ratio": 1.625, "status": "placeholder: pilot 60/40/65"}
+  },
+  "case_context": {
+    "status": "draft",
+    "zh": "本局情境：物品 X 代表一批「{category}」，數量 {quantity}，以整批方式交易（X: 1 即整批）。",
+    "en": "Scenario: the item X in this game stands for one lot of {category}, quantity {quantity}, traded as a single lot (X: 1 is the whole lot)."
+  },
+  "category_glossary": "data/procurement/category_glossary.csv",
+  "candidates": "data/procurement/candidates.csv",
+  "stages": {
+    "h1": {
+      "roles": ["stage1_2"],
+      "languages": ["en", "zh"],
+      "structures": ["wide", "narrow", "no_range"],
+      "tactics": ["baseline"],
+      "prompt_versions": ["v1"],
+      "reps": 1,
+      "seed": 20261101
+    },
+    "smoke": {
+      "roles": ["pool"],
+      "max_cases": 1,
+      "languages": ["en", "zh"],
+      "structures": ["narrow"],
+      "tactics": ["baseline"],
+      "prompt_versions": ["v1"],
+      "reps": 1,
+      "seed": 1
+    }
+  }
+}
