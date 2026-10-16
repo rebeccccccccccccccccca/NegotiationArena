@@ -1,0 +1,28 @@
+﻿category_group,name_zh,name_en,in_whitelist,n_passed_base,n_eligible,budget_min,budget_p25,budget_median,budget_p75,budget_max,n_未達公告金額,n_公告金額以上未達查核金額,n_查核金額以上未達巨額,n_巨額
+ALL,,,,186,186,101378.0,501000.0,1200000.0,3800000.0,47000000.0,105,80,1,0
+48,"醫療器具, 精密及光學儀器, 鐘錶","Medical appliances, precision and optical instruments, watches and clocks",,38,38,265000.0,556500.0,1335000.0,4320500.0,9996000.0,21,17,0,0
+32,"紙漿,紙及紙產品;印刷品及相關的商品","Pulp, paper and paper products; printed matter and related articles",,20,20,168360.0,588825.0,770111.0,3644536.25,31500000.0,12,7,1,0
+46,電動機器及儀器,Electrical machinery and apparatus,,18,18,231650.0,517612.5,1482000.0,4834125.0,24150000.0,10,8,0,0
+45,"辦公室, 會計及電腦機器","Office, accounting and computing machinery",,17,17,230000.0,336000.0,600000.0,1200000.0,24700000.0,13,4,0,0
+44,特殊用途之機具,Special purpose machinery,,15,15,220000.0,882000.0,1500000.0,4898065.0,14000000.0,7,8,0,0
+43,通用機具,General purpose machinery,,12,12,504000.0,1241950.0,2875067.0,5400554.25,12750360.0,4,8,0,0
+38,傢具; 其它可運輸貨物,Furniture; other transportable goods n.e.c.,,12,12,360000.0,414750.0,621788.0,1518240.0,3940790.0,9,3,0,0
+42,除了機具及設備外之預鑄金屬產品,"Fabricated metal products, except machinery and equipment",,7,7,101378.0,297570.0,450000.0,7794732.0,41631911.0,5,2,0,0
+49,運輸設備,Transport equipment,,7,7,476000.0,1130000.0,1784685.0,2675000.0,36000000.0,2,5,0,0
+47,"收音機、電視, 通訊器材及儀器","Radio, television and communication equipment and apparatus",,5,5,299950.0,970000.0,1070000.0,1670000.0,2500000.0,3,2,0,0
+23,"穀粉, 澱粉及澱粉製品; 其他食品","Grain mill products, starches and starch products; other food products",,4,4,320000.0,583077.5,739408.0,964184.5,1432600.0,3,1,0,0
+28,編織或鉤針織品; 成衣,Knitted or crocheted fabrics; wearing apparel,,4,4,219700.0,429925.0,767387.5,1638581.25,3450000.0,3,1,0,0
+41,基本金屬,Basic metals,,4,4,798024.0,3947814.75,12998872.5,24552495.5,35209982.0,1,3,0,0
+34,基本化學產品,Basic chemicals,,3,3,282870.0,302735.0,322600.0,3937966.5,7553333.0,2,1,0,0
+36,橡膠及塑膠產品,Rubber and plastics products,,3,3,210000.0,210075.0,210150.0,225069.0,239988.0,3,0,0,0
+21,"肉類, 魚, 果實, 蔬菜,及油脂","Meat, fish, fruit, vegetables, oils and fats",,3,3,1344215.0,1557563.5,1770912.0,3549425.0,5327938.0,1,2,0,0
+27,除服裝以外之紡織品,Textile articles other than apparel,,3,3,219000.0,231885.0,244770.0,3074885.0,5905000.0,2,1,0,0
+37,"玻璃, 玻璃產品及其它非金屬產品(不另分類)",Glass and glass products and other non-metallic products n.e.c.,,2,2,621110.0,752403.75,883697.5,1014991.25,1146285.0,2,0,0,0
+33,煉焦爐產品；精煉石油產品；核燃料,Coke oven products; refined petroleum products; nuclear fuel,,2,2,4845000.0,6633750.0,8422500.0,10211250.0,12000000.0,0,2,0,0
+18,水,Water,,1,1,308490.0,308490.0,308490.0,308490.0,308490.0,1,0,0,0
+35,其它化學產品; 人造纖維,Other chemical products; man-made fibres,,1,1,47000000.0,47000000.0,47000000.0,47000000.0,47000000.0,0,1,0,0
+53,土地,Land,,1,1,6480000.0,6480000.0,6480000.0,6480000.0,6480000.0,0,1,0,0
+24,飲料,Beverages,,1,1,550000.0,550000.0,550000.0,550000.0,550000.0,1,0,0,0
+01,"農業, 園藝及市場園藝產品","Products of agriculture, horticulture and market gardening",,1,1,24750000.0,24750000.0,24750000.0,24750000.0,24750000.0,0,1,0,0
+29,"皮革與皮革品, 鞋靴",Leather and leather products; footwear,,1,1,2002600.0,2002600.0,2002600.0,2002600.0,2002600.0,0,1,0,0
+17,"電力, 瓦斯, 蒸氣及熱水","Electricity, town gas, steam and hot water",,1,1,2800000.0,2800000.0,2800000.0,2800000.0,2800000.0,0,1,0,0
