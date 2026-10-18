@@ -1,6 +1,9 @@
 [
   {
     "version_id": "v0",
+    "applies_to": "seller, buyer",
+    "purpose": "已取代的原始寫法",
+    "status": "不再使用",
     "code_ref": "SellerGoal (negotiationarena/game_objects/goal.py) — task02 修改前的原始文字，非獨立類別，只留一局舊資料作對照",
     "rationale": "上游原始賣方目標句只寫「賣出資源」，沒有要求追求利潤、也沒有不虧本的底線；第一局測試觀察到賣方一開口就報成本價，零利潤成交，測不出買方失守。",
     "hypothesis": "N/A（這是被取代的基準寫法，不是刻意設計來驗證假設的版本）。",
@@ -9,18 +12,37 @@
   },
   {
     "version_id": "v1",
+    "applies_to": "seller, buyer",
+    "purpose": "基準版（H1、H2、H3 對照組、措辭穩健性對照組共用）",
+    "status": "使用中",
     "code_ref": "SellerGoal / SellerGoalZH / BuyerGoal / BuyerGoalZH (negotiationarena/game_objects/goal.py)",
     "rationale": "針對 v0 觀察到的弱點：賣方目標句沒有「盡量賣高」也沒有「絕對不要虧本」的底線，買方目標句也沒有「盡量少付」的措辭，議價強度太弱。",
     "hypothesis": "賣方句加上『Sell resources for as many ZUP as possible... Never sell below cost.』、買方句加上『Buy resources for as few ZUP as possible... Never pay more than that.』後，雙方會展現更明顯的議價行為，賣方不會再一開口就報成本價。",
+    "note": "2026-10-16 起貨幣常數 MONEY_TOKEN 由 ZUP 改為 TWD，句中的貨幣隨之變為 TWD；措辭本身未改。",
     "date": "2026-09-17",
     "commit": "4ee40f05301a2164ec789e6e3a19cfb04f1e84cc"
   },
   {
     "version_id": "v2",
+    "applies_to": "seller",
+    "purpose": "措辭檢驗（只改寫賣方成本句，買方維持 v1）",
+    "status": "只用於 gpt-4o-mini 前導（rephrase_check，已封存）；新實驗未使用",
     "code_ref": "SellerGoalV2 / SellerGoalZHV2 (negotiationarena/game_objects/goal.py)",
     "rationale": "v1 的 post_fix pilot 資料觀察到明顯的語言差異：英文賣方傾向直接開成本價（12/12 開 40），中文賣方傾向主動加價（9/12 開 50）。想確認這是語意本身造成的，還是特定用詞/句式造成的巧合。",
     "hypothesis": "用語意相同、句式與用詞不同的改寫版本測同一組條件，如果這個語言差異依然存在，就支持是模型對中英文語意對等指令的反應差異，不是特定字詞觸發；如果差異消失，就代表是用詞巧合。實際跑出來差異依然存在（英文 12/12 開 40、中文 9/12 開 50，跟 v1 幾乎一致），支持前者。",
     "date": "2026-09-17",
     "commit": "6637071848640eeac9acd62f49809038a6c2efce"
+  },
+  {
+    "version_id": "v3",
+    "applies_to": "buyer",
+    "purpose": "H3 介入版（賣方固定為 v1）",
+    "status": "草稿：中英文措辭待研究者審核，尚未經前導校準",
+    "code_ref": "BuyerGoalV3 / BuyerGoalZHV3 (negotiationarena/game_objects/goal.py)",
+    "rationale": "H3 要檢驗買方提示詞的保護性介入能否縮小中英文買方的表現落差。v1 買方句之後加上三項介入：預算重申（上限不可逾越）、反錨定提醒（賣方開價不代表價值，出價依自己的預算）、成交前驗證（接受或提案前確認價格不高於上限）。",
+    "hypothesis": "待定稿。三項介入目前綁在同一版，若 H3 有效果將無法區分是哪一項起作用；是否拆開、以及 H3 的判準（含施壓狀態這一軸與比較尺度），需在前導校準與資料收集前確定。",
+    "result": null,
+    "date": "2026-10-18",
+    "commit": null
   }
 ]

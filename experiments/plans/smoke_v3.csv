@@ -1,0 +1,3 @@
+order,run_id,stage,case_id,pool_rank,role,structure,tactic,seller_prompt_version,buyer_prompt_version,language,rep,pair_id
+1,smoke_v3:BDM-1-71081779:narrow:baseline:sv1-bv3:r1:zh,smoke_v3,BDM-1-71081779,121,pool,narrow,baseline,v1,v3,zh,1,BDM-1-71081779:narrow:baseline:sv1-bv3:r1
+2,smoke_v3:BDM-1-71081779:narrow:baseline:sv1-bv3:r1:en,smoke_v3,BDM-1-71081779,121,pool,narrow,baseline,v1,v3,en,1,BDM-1-71081779:narrow:baseline:sv1-bv3:r1

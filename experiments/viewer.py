@@ -8,6 +8,10 @@ same pattern as webapp/pages/1_user_view.py's (working) chat_message
 rendering, just without the broken discovery/deserialization layer in
 front of it.
 
+Everything is shown one data set at a time: pick a stage (H1, a pilot, a
+smoke test) in the sidebar and every tab only sees that stage's games,
+listed by game label (h1_001, h1_002, ...).
+
 Run with: python -m streamlit run experiments/viewer.py
 """
 
@@ -26,6 +30,7 @@ if str(ROOT) not in sys.path:
 os.chdir(ROOT)
 
 import json
+import subprocess
 import time
 from datetime import datetime
 
@@ -33,8 +38,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
 
-from experiments import summarize
-from experiments.summarize import summarize_game, trade_price
+from experiments.summarize import trade_price
 
 LOGS_DIR = ROOT / ".logs"
 RESULTS_CSV = ROOT / "experiments" / "results.csv"
@@ -63,39 +67,82 @@ NUMERIC_COLS = [
     "retry_count",
     "buyer_surplus_share",
     "buyer_surplus_uncond",
+    "game_no",
+    "order",
+    "case_no",
+    "attempt",
+    "buyer_funds",
 ]
 
-METRIC_LABELS = [
-    ("deal", "成交率", "rate"),
-    ("breach_A", "breach_A 比例", "rate"),
-    ("buyer_no_counter", "buyer_no_counter 比例", "rate"),
-    ("buyer_surplus_share", "buyer_surplus_share 平均", "avg"),
-    ("buyer_surplus_uncond", "buyer_surplus_uncond 平均", "avg"),
-    ("seller_below_cost", "seller_below_cost 比例", "rate"),
-    ("_max_rounds", "max_rounds 比例", "rate"),
-    ("_rejected", "rejected 比例", "rate"),
-    ("_failure", "失敗率", "rate"),
+FORMAL_STAGES = {
+    "h1": "H1 正式實驗",
+    "h2": "H2 正式實驗",
+    "h3": "H3 正式實驗",
+    "wording": "措辭穩健性",
+}
+# Games with no stage: everything run before the batch runner (the
+# gpt-4o-mini pilots). They only show up if moved back from .logs_archive/.
+LEGACY_DATASET = "（Luna 之前的舊資料）"
+
+STATUS_LABELS = {"ok": "成交", "rejected": "拒絕", "max_rounds": "回合用盡"}
+ERROR_LABEL = "錯誤"
+STRUCTURE_LABELS = {"wide": "寬鬆", "narrow": "緊縮", "no_range": "無交集"}
+LANGUAGE_LABELS = {"en": "英文", "zh": "中文"}
+
+# (column, header) of the game list, in display order.
+TABLE_COLUMNS = [
+    ("display_label", "局編號"),
+    ("case_no", "案例"),
+    ("category_label", "品項"),
+    ("structure_label", "價格結構"),
+    ("language_label", "語言"),
+    ("result", "結果"),
+    ("wtp", "預算 B"),
+    ("cost", "成本 C"),
+    ("seller_first_offer", "賣方開價 O"),
+    ("final_price", "成交價"),
+    ("rounds", "發言次數"),
+    ("buyer_surplus_share", "買方剩餘份額"),
+    ("breach_A", "失守 A（超預算成交）"),
+    ("buyer_no_counter", "成交且未還價"),
+    ("seller_prompt_version", "賣方版本"),
+    ("buyer_prompt_version", "買方版本"),
+    ("attempt", "第幾次嘗試"),
+    ("order", "執行順序"),
 ]
 
-# Statuses of a game that ran to a clean end; anything else is a failure.
-VALID_STATUSES = ["ok", "max_rounds", "rejected"]
+# Columns this viewer relies on that older summarize.py versions didn't
+# write; filled with blanks if missing so the page still loads.
+EXPECTED_COLUMNS = [
+    "stage",
+    "game_label",
+    "game_no",
+    "order",
+    "attempt",
+    "case_no",
+    "category_label",
+    "structure",
+    "seller_prompt_version",
+    "buyer_prompt_version",
+]
 
 
-def derive_grouping(game_id):
-    """(output_dir, condition) from a game_id like
-    'probe_v2/en_wide/12345' -> ('probe_v2', 'wide'), or
-    'baseline_v2/12345' -> ('baseline_v2', 'baseline_v2')."""
-    parts = game_id.split("/")
-    output_dir = parts[0]
-    if len(parts) == 3:
-        lang_condition = parts[1]
-        if lang_condition.startswith(("en_", "zh_")):
-            condition = lang_condition.split("_", 1)[1]
-        else:
-            condition = lang_condition
-    else:
-        condition = output_dir
-    return output_dir, condition
+def dataset_label(stage):
+    if stage is None:
+        return LEGACY_DATASET
+    if stage in FORMAL_STAGES:
+        return FORMAL_STAGES[stage]
+    if stage.startswith("smoke"):
+        return f"測試：{stage}"
+    return f"前導：{stage}"
+
+
+def dataset_sort_key(stage):
+    if stage in FORMAL_STAGES:
+        return (0, list(FORMAL_STAGES).index(stage), stage)
+    if stage.startswith("smoke"):
+        return (2, 0, stage)
+    return (1, 0, stage)
 
 
 def _read_results_csv():
@@ -112,9 +159,27 @@ def _read_results_csv():
     raise last_exc
 
 
+def regenerate_results():
+    """Rebuild results.csv in a separate process, so it is always the
+    summarize.py on disk that runs: a long-lived Streamlit server keeps the
+    modules it imported at start-up even after their files change."""
+    return subprocess.run(
+        [sys.executable, "-m", "experiments.summarize"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+    )
+
+
 @st.cache_data
 def load_results_df(_cache_key):
     df = _read_results_csv()
+    missing = [c for c in EXPECTED_COLUMNS if c not in df.columns]
+    for col in missing:
+        df[col] = ""
     df = df.replace("", pd.NA)
     for col in BOOL_COLS:
         if col in df.columns:
@@ -122,10 +187,28 @@ def load_results_df(_cache_key):
     for col in NUMERIC_COLS:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
-    grouping = df["game_id"].map(derive_grouping)
-    df["output_dir"] = [g[0] for g in grouping]
-    df["condition"] = [g[1] for g in grouping]
-    return df
+    df["result"] = df["status"].map(STATUS_LABELS).fillna(ERROR_LABEL)
+    df["structure_label"] = df["structure"].map(STRUCTURE_LABELS)
+    df["language_label"] = df["language"].map(LANGUAGE_LABELS).fillna(df["language"])
+    df["display_label"] = df["game_label"].fillna(df["game_id"])
+    return df, missing
+
+
+def select_dataset(df):
+    """Sidebar picker for one stage; returns (its games in game-number
+    order, the stage or None for the pre-batch-runner games)."""
+    options = sorted(df["stage"].dropna().unique(), key=dataset_sort_key)
+    if df["stage"].isna().any():
+        options.append(None)
+    if not options:
+        return df, None
+    stage = st.sidebar.selectbox(
+        "資料集", options, format_func=dataset_label, key="dataset"
+    )
+    if stage is None:
+        return df[df["stage"].isna()].sort_values("game_id"), None
+    sub = df[df["stage"] == stage]
+    return sub.sort_values(["game_no", "attempt"], na_position="last"), stage
 
 
 def load_runs_df():
@@ -169,138 +252,167 @@ def series_mean(series):
     return float(series.mean())
 
 
-def render_metric_cards(df):
-    for key, label, kind in METRIC_LABELS:
-        cols = st.columns(2)
-        for col, lang in zip(cols, ("en", "zh")):
-            sub = df[df["language"] == lang]
-            if key in ("_max_rounds", "_rejected"):
-                value = (sub["status"] == key[1:]).mean() if len(sub) else None
-            elif key == "_failure":
-                value = (
-                    (~sub["status"].isin(VALID_STATUSES)).mean()
-                    if len(sub)
-                    else None
-                )
-            else:
-                value = series_mean(sub[key]) if key in sub.columns else None
+def game_option_label(row):
+    """'h1_001 · 案例 1 · 寬鬆 · 英文' for game pickers."""
+    parts = [row["display_label"]]
+    if pd.notna(row.get("case_no")):
+        parts.append(f"案例 {int(row['case_no'])}")
+    if pd.notna(row.get("structure_label")):
+        parts.append(row["structure_label"])
+    parts.append(row["language_label"])
+    if pd.notna(row.get("attempt")) and row["attempt"] > 1:
+        parts.append(f"第 {int(row['attempt'])} 次嘗試")
+    return " · ".join(parts)
 
+
+def select_game(df, key):
+    if df.empty:
+        st.info("這個資料集沒有任何局。")
+        return None
+    labels = {row["game_id"]: game_option_label(row) for _, row in df.iterrows()}
+    return st.selectbox(
+        "選擇局", list(labels), format_func=labels.get, key=key
+    )
+
+
+def metrics_table(df):
+    """Rows = metrics, columns = languages."""
+    def rate(sub, mask):
+        return mask.mean() if len(sub) else None
+
+    metrics = [
+        ("局數", lambda s: len(s), "count"),
+        ("成交率", lambda s: rate(s, s["result"] == "成交"), "rate"),
+        ("拒絕比例", lambda s: rate(s, s["result"] == "拒絕"), "rate"),
+        ("回合用盡比例", lambda s: rate(s, s["result"] == "回合用盡"), "rate"),
+        ("錯誤比例", lambda s: rate(s, s["result"] == ERROR_LABEL), "rate"),
+        ("失守 A（超預算成交）比例", lambda s: series_mean(s["breach_A"]), "rate"),
+        ("成交且未還價比例", lambda s: series_mean(s["buyer_no_counter"]), "rate"),
+        ("買方剩餘份額平均（成交局）", lambda s: series_mean(s["buyer_surplus_share"]), "avg"),
+        ("買方剩餘份額平均（未成交計 0）", lambda s: series_mean(s["buyer_surplus_uncond"]), "avg"),
+        ("賣方低於成本成交比例", lambda s: series_mean(s["seller_below_cost"]), "rate"),
+    ]
+    langs = [lang for lang in ("en", "zh") if (df["language"] == lang).any()]
+    rows = []
+    for name, fn, kind in metrics:
+        row = {"指標": name}
+        for lang in langs:
+            value = fn(df[df["language"] == lang])
             if value is None:
-                display = "—"
+                row[LANGUAGE_LABELS[lang]] = "—"
+            elif kind == "count":
+                row[LANGUAGE_LABELS[lang]] = f"{value}"
             elif kind == "rate":
-                display = f"{value:.1%}"
+                row[LANGUAGE_LABELS[lang]] = f"{value:.1%}"
             else:
-                display = f"{value:.3f}"
-            col.metric(f"{label} ({lang})", display)
+                row[LANGUAGE_LABELS[lang]] = f"{value:.3f}"
+        rows.append(row)
+    return pd.DataFrame(rows).set_index("指標")
 
 
-def plot_seller_first_offer_dist(df):
-    fig, ax = plt.subplots()
+def plot_surplus_dist(df):
+    fig, ax = plt.subplots(figsize=(6, 3))
     plotted = False
     for lang, color in (("en", "tab:blue"), ("zh", "tab:orange")):
-        vals = df[df["language"] == lang]["seller_first_offer"].dropna()
+        vals = df[df["language"] == lang]["buyer_surplus_share"].dropna()
         if not vals.empty:
             plotted = True
-            span = int(vals.max()) - int(vals.min())
-            ax.hist(
-                vals,
-                # One bin per unit for the small pilot prices (40, 50, 65);
-                # procurement-scale prices would mean millions of bins.
-                bins=range(int(vals.min()), int(vals.max()) + 2) if span <= 200 else 30,
-                alpha=0.6,
-                label=lang,
-                color=color,
-            )
-    # No unit: pilot games are in ZUP, procurement-case games in TWD.
-    ax.set_xlabel("Seller first offer")
-    ax.set_ylabel("Count")
+            ax.hist(vals, bins=[i / 10 for i in range(11)], alpha=0.6,
+                    label=LANGUAGE_LABELS[lang], color=color)
+    ax.set_xlabel("Buyer surplus share (deals only)")
+    ax.set_ylabel("Games")
     if plotted:
         ax.legend()
     return fig
 
 
-def style_results_table(df):
+def style_results_table(table):
     def style_breach(val):
         return "background-color: #ffb3b3" if val is True else ""
 
-    def style_status(val):
-        return "background-color: #fff3b0" if val not in VALID_STATUSES else ""
+    def style_result(val):
+        return "background-color: #fff3b0" if val == ERROR_LABEL else ""
 
-    styler = df.style
-    if "breach_A" in df.columns:
-        styler = styler.map(style_breach, subset=["breach_A"])
-    if "status" in df.columns:
-        styler = styler.map(style_status, subset=["status"])
-    return styler
+    return (
+        table.style
+        .map(style_breach, subset=["失守 A（超預算成交）"])
+        .map(style_result, subset=["結果"])
+    )
 
 
-def render_results_table_tab():
-    st.subheader("交易表格")
+def sidebar_filter(df, label, col):
+    options = [x for x in df[col].dropna().unique()]
+    if len(options) <= 1:
+        return df
+    chosen = st.sidebar.multiselect(label, sorted(options), default=sorted(options))
+    return df[df[col].isin(chosen)]
 
-    df = load_results_df(RESULTS_CSV.stat().st_mtime if RESULTS_CSV.exists() else 0)
 
-    st.sidebar.header("交易表格篩選")
+def render_results_table_tab(df, stage):
+    st.subheader(f"交易表格 — {dataset_label(stage)}")
 
-    def multiselect(label, col):
-        options = sorted(x for x in df[col].dropna().unique())
-        default = options
-        if col == "data_version" and "post_fix" in options:
-            default = ["post_fix"]
-        return st.sidebar.multiselect(label, options, default=default)
-
-    lang_sel = multiselect("language", "language")
-    cond_sel = multiselect("條件 (condition)", "condition")
-    pv_sel = multiselect("prompt_version", "prompt_version")
-    status_sel = multiselect("status", "status")
-    out_sel = multiselect("output_dir", "output_dir")
-    dv_sel = multiselect("data_version", "data_version")
-
-    filtered = df[
-        df["language"].isin(lang_sel)
-        & df["condition"].isin(cond_sel)
-        & df["prompt_version"].isin(pv_sel)
-        & df["status"].isin(status_sel)
-        & df["output_dir"].isin(out_sel)
-        & df["data_version"].isin(dv_sel)
-    ]
+    st.sidebar.header("篩選")
+    filtered = df
+    filtered = sidebar_filter(filtered, "語言", "language_label")
+    filtered = sidebar_filter(filtered, "價格結構", "structure_label")
+    filtered = sidebar_filter(filtered, "結果", "result")
+    filtered = sidebar_filter(filtered, "賣方版本", "seller_prompt_version")
+    filtered = sidebar_filter(filtered, "買方版本", "buyer_prompt_version")
 
     st.caption(f"{len(filtered)} / {len(df)} 局符合篩選條件")
 
-    render_metric_cards(filtered)
+    left, right = st.columns([3, 2])
+    with left:
+        st.markdown("#### 主要指標")
+        st.table(metrics_table(filtered))
+    with right:
+        st.markdown("#### 買方剩餘份額分布")
+        st.pyplot(plot_surplus_dist(filtered))
 
-    st.markdown("#### 賣方第一口價分布")
-    st.pyplot(plot_seller_first_offer_dist(filtered))
+    st.markdown("#### 局列表（依局編號排序）")
+    columns = [(c, h) for c, h in TABLE_COLUMNS if c in filtered.columns]
+    table = filtered[[c for c, _ in columns]].rename(columns=dict(columns))
+    st.dataframe(style_results_table(table), width="stretch", hide_index=True)
+    with st.expander("顯示全部欄位"):
+        st.dataframe(filtered, width="stretch", hide_index=True)
 
-    st.markdown("#### 局列表")
-    st.dataframe(style_results_table(filtered), width="stretch")
 
-
-def render_negotiation_tab():
+def render_negotiation_tab(df):
     st.subheader("議價過程")
 
-    df = load_results_df(RESULTS_CSV.stat().st_mtime if RESULTS_CSV.exists() else 0)
-    game_id = st.selectbox("選擇 game_id", sorted(df["game_id"].tolist()))
+    game_id = select_game(df, key="negotiation_game")
     if not game_id:
         return
 
-    path = LOGS_DIR / game_id / "game_state.json"
-    row = summarize_game(game_id, path)
+    # The game's row from results.csv (rebuilt by the current summarize.py
+    # at start-up), rather than re-summarizing it in this process.
+    row = df[df["game_id"] == game_id].iloc[0]
+    game = load_game_state(game_id)
+    money = money_token(game)
+    experiment = game.get("experiment") or {}
 
-    cols = st.columns(4)
-    cols[0].metric("語言", row["language"])
-    cols[1].metric("狀態 (status)", row["status"])
-    cols[2].metric("Cost / WTP", f"{row['cost']} / {row['wtp']}")
-    cols[3].metric("成交價", row["final_price"] if row["final_price"] is not None else "—")
+    def amount(value):
+        return "—" if pd.isna(value) else f"{int(value):,}"
 
-    with st.expander("失守判定 / 其他欄位"):
+    cols = st.columns(5)
+    cols[0].metric("語言", row["language_label"])
+    cols[1].metric("結果", row["result"])
+    cols[2].metric("預算 B", amount(row["wtp"]))
+    cols[3].metric("成本 C", amount(row["cost"]))
+    cols[4].metric("成交價", amount(row["final_price"]))
+    if experiment.get("case_context"):
+        st.caption(experiment["case_context"])
+
+    with st.expander("其他欄位"):
         st.json(
             {
-                k: row[k]
+                k: None if pd.isna(row.get(k)) else str(row.get(k))
                 for k in (
+                    "game_id",
                     "model",
                     "model_version",
-                    "prompt_version",
-                    "data_version",
+                    "seller_prompt_version",
+                    "buyer_prompt_version",
                     "seller_first_offer",
                     "breach_A",
                     "seller_below_cost",
@@ -313,9 +425,6 @@ def render_negotiation_tab():
                 )
             }
         )
-
-    game = load_game_state(game_id)
-    money = money_token(game)
 
     left, right = st.columns([2, 1])
 
@@ -333,7 +442,7 @@ def render_negotiation_tab():
             price = trade_price(trade, "BLUE")
 
             with st.chat_message("assistant" if turn == 0 else "user"):
-                st.markdown(f"**{speaker}** · {answer}" + (f" · {price} {money}" if price is not None else ""))
+                st.markdown(f"**{speaker}** · {answer}" + (f" · {price:,} {money}" if price is not None else ""))
                 if message:
                     st.write(message)
                 reason = priv.get("reason") if isinstance(priv, dict) else None
@@ -355,140 +464,92 @@ def render_negotiation_tab():
         fig, ax = plt.subplots()
         if iterations:
             ax.plot(iterations, prices, marker="o")
-        if row["cost"] is not None:
-            ax.axhline(row["cost"], color="green", linestyle="--", label=f"Cost={row['cost']}")
-        if row["wtp"] is not None:
-            ax.axhline(row["wtp"], color="red", linestyle="--", label=f"WTP={row['wtp']}")
+        if pd.notna(row["cost"]):
+            ax.axhline(row["cost"], color="green", linestyle="--", label="Cost C")
+        if pd.notna(row["wtp"]):
+            ax.axhline(row["wtp"], color="red", linestyle="--", label="Budget B")
         ax.set_xlabel("Iteration")
         ax.set_ylabel(money)
         ax.legend()
         st.pyplot(fig)
 
 
-def condition_label(row):
-    offer = row["seller_first_offer"]
-    offer_str = "free" if pd.isna(offer) else str(int(offer))
-    return f"{row['language']} · cost={row['cost']} wtp={row['wtp']} offer={offer_str}"
+def version_counts(series):
+    """'v1×10, v3×2' for a column of per-game versions."""
+    counts = series.fillna("—").value_counts()
+    return ", ".join(f"{v}×{n}" for v, n in counts.items())
 
 
-def render_prompt_versions_tab():
+def render_prompt_versions_tab(df, stage):
     st.subheader("Prompt 版本")
 
-    versions = load_prompt_versions()
-    by_id = {v["version_id"]: v for v in versions}
-
-    st.markdown("#### 目前使用中的版本")
-    baseline = by_id.get("v1")
-    active = versions[-1] if versions else None
-
-    cols = st.columns(2)
-    with cols[0]:
-        st.markdown("**Baseline（v1）**")
-        if baseline:
-            st.caption(f"code_ref: {baseline['code_ref']}")
-            st.write(f"**動機**：{baseline['rationale']}")
-            st.write(f"**假設**：{baseline['hypothesis']}")
-        else:
-            st.info("prompt_versions.json 裡沒有 v1 的紀錄。")
-    with cols[1]:
-        label = active["version_id"] if active else "—"
-        st.markdown(f"**目前作用中版本（{label}，prompt_versions.json 最後一筆）**")
-        if active:
-            st.caption(f"code_ref: {active['code_ref']}")
-            st.write(f"**動機**：{active['rationale']}")
-            st.write(f"**假設**：{active['hypothesis']}")
-        else:
-            st.info("experiments/prompt_versions.json 還沒有任何版本紀錄。")
-
-    with st.expander("所有版本紀錄（experiments/prompt_versions.json）"):
-        if versions:
-            st.dataframe(pd.DataFrame(versions), width="stretch")
-        else:
-            st.info("還沒有任何版本紀錄。")
-
-    st.markdown("---")
-    st.markdown("#### 版本效果比較表")
+    st.markdown("#### 版本登記（設計用途）")
     st.caption(
-        "同條件（語言 × cost/wtp/賣方開價）下，各 prompt_version 的表現，"
-        "並附上跟 baseline（v1）的差異。欄位不足以算效應量（例如樣本數太小、"
-        "標準差沒存）時只呈現原始差異。"
+        "experiments/prompt_versions.json 記錄每個版本的用途、適用方（買方／賣方）與狀態。"
+        "登記不代表這個版本有進入正式實驗；實際用了哪個版本，請看下一張表。"
+    )
+    versions = load_prompt_versions()
+    if versions:
+        st.dataframe(pd.DataFrame(versions), width="stretch", hide_index=True)
+    else:
+        st.info("experiments/prompt_versions.json 還沒有任何版本紀錄。")
+
+    st.markdown(f"#### 這個資料集實際使用的版本 — {dataset_label(stage)}")
+    st.caption(
+        "依每局 game_state.json 裡實際建構的目標句類別判定（summarize.py），"
+        "不看執行時自報的標籤；買方、賣方分開計數。"
+    )
+    if df.empty:
+        st.info("這個資料集沒有任何局。")
+        return
+    st.table(
+        pd.DataFrame(
+            [
+                {
+                    "局數": len(df),
+                    "賣方版本": version_counts(df["seller_prompt_version"]),
+                    "買方版本": version_counts(df["buyer_prompt_version"]),
+                }
+            ]
+        )
     )
 
-    df = load_results_df(RESULTS_CSV.stat().st_mtime if RESULTS_CSV.exists() else 0)
-    comparable = df.dropna(subset=["language", "cost", "wtp", "prompt_version"])
-
-    if comparable.empty:
-        st.info("目前沒有可比較的資料。")
-    else:
-        comparable = comparable.copy()
-        comparable["condition"] = comparable.apply(condition_label, axis=1)
-
-        rows = []
-        for (condition, pv), sub in comparable.groupby(["condition", "prompt_version"]):
-            rows.append(
-                {
-                    "condition": condition,
-                    "prompt_version": pv,
-                    "n": len(sub),
-                    "breach_A_rate": series_mean(sub["breach_A"]),
-                    "buyer_no_counter_rate": series_mean(sub["buyer_no_counter"]),
-                    "buyer_surplus_share_avg": series_mean(sub["buyer_surplus_share"]),
-                    "avg_rounds": series_mean(sub["rounds"]),
-                }
-            )
-        comp_df = pd.DataFrame(rows)
-
-        diff_cols = [
-            "breach_A_rate",
-            "buyer_no_counter_rate",
-            "buyer_surplus_share_avg",
-            "avg_rounds",
-        ]
-
-        # Diff vs baseline (v1) within each condition, via merge rather than
-        # groupby().apply() -- pandas 3.x can drop the grouping column when
-        # the applied function returns a DataFrame with the same index.
-        baseline_df = comp_df[comp_df["prompt_version"] == "v1"][
-            ["condition"] + diff_cols
-        ].rename(columns={c: f"__baseline_{c}" for c in diff_cols})
-        comp_df = comp_df.merge(baseline_df, on="condition", how="left")
-        for c in diff_cols:
-            comp_df[f"{c}_vs_baseline"] = comp_df[c] - comp_df[f"__baseline_{c}"]
-            comp_df = comp_df.drop(columns=[f"__baseline_{c}"])
-
-        st.dataframe(
-            comp_df.sort_values(["condition", "prompt_version"]), width="stretch"
-        )
+    st.markdown("#### 版本效果比較表")
+    st.caption(
+        "同一語言、同一價格結構下，各版本組合的表現（prompt_version：雙方相同時寫一個版本，"
+        "不同時寫「賣方/買方」，例如 v1/v3）。樣本數小時只供參考。"
+    )
+    keys = ["language_label", "structure_label", "prompt_version"]
+    comparable = df.dropna(subset=["prompt_version"])
+    rows = [
+        {
+            "語言": lang,
+            "價格結構": structure if pd.notna(structure) else "—",
+            "版本": pv,
+            "局數": len(sub),
+            "失守 A 比例": series_mean(sub["breach_A"]),
+            "成交且未還價比例": series_mean(sub["buyer_no_counter"]),
+            "買方剩餘份額平均": series_mean(sub["buyer_surplus_share"]),
+            "平均發言次數": series_mean(sub["rounds"]),
+        }
+        for (lang, structure, pv), sub in comparable.groupby(keys, dropna=False)
+    ]
+    st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
 
     st.markdown("---")
     st.markdown("#### 單局完整 Prompt 檢視")
-
-    pv_options = sorted(df["prompt_version"].dropna().unique())
-    if not pv_options:
-        st.info("目前沒有任何局有 prompt_version。")
-        return
-
-    sel_pv = st.selectbox("prompt_version", pv_options, key="pv_tab_version")
-    sub = df[df["prompt_version"] == sel_pv]
-    sel_game_id = st.selectbox(
-        "選擇局", sorted(sub["game_id"].tolist()), key="pv_tab_game"
-    )
+    game_id = select_game(df, key="prompt_game")
     sel_role = st.radio(
         "查看哪一方的 system prompt",
         ["Player RED（賣方）", "Player BLUE（買方）"],
         horizontal=True,
         key="pv_tab_role",
     )
-
-    if sel_game_id:
-        game = load_game_state(sel_game_id)
+    if game_id:
+        game = load_game_state(game_id)
         idx = 0 if "RED" in sel_role else 1
         system_prompt = game["players"][idx]["conversation"][0]["content"]
-        st.text_area(
-            f"{sel_game_id} — {sel_role} — system prompt 原文",
-            system_prompt,
-            height=400,
-        )
+        st.text_area(f"{sel_role} — system prompt 原文", system_prompt, height=400)
 
 
 def append_worklog_note(note_text):
@@ -555,20 +616,31 @@ def main():
 
     if "results_regenerated" not in st.session_state:
         with st.spinner("重新產生 experiments/results.csv..."):
-            summarize.main()
+            result = regenerate_results()
+        if result.returncode != 0:
+            st.error("重新產生 results.csv 失敗，下面是目前檔案裡的資料。")
+            st.code(result.stderr[-2000:])
         st.session_state["results_regenerated"] = True
+
+    df, missing = load_results_df(RESULTS_CSV.stat().st_mtime if RESULTS_CSV.exists() else 0)
+    if missing:
+        st.warning(
+            f"results.csv 缺少欄位 {missing}，可能是舊版程式產生的。"
+            "請關掉 Viewer 再重新開啟（run_viewer.bat）。"
+        )
+    dataset, stage = select_dataset(df)
 
     tab1, tab2, tab3, tab4 = st.tabs(
         ["交易表格", "議價過程", "工作日誌", "Prompt 版本"]
     )
     with tab1:
-        render_results_table_tab()
+        render_results_table_tab(dataset, stage)
     with tab2:
-        render_negotiation_tab()
+        render_negotiation_tab(dataset)
     with tab3:
         render_worklog_tab()
     with tab4:
-        render_prompt_versions_tab()
+        render_prompt_versions_tab(dataset, stage)
 
 
 if __name__ == "__main__":

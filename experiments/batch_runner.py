@@ -36,6 +36,12 @@ from experiments.cases import (
     load_glossary,
     negotiation_settings,
 )
+from experiments.goal_versions import (
+    BUYER_GOALS,
+    SELLER_GOALS,
+    check_combination,
+    combined_label,
+)
 from experiments.plan import plan_path
 from experiments.run_logger import append_run_log
 from experiments.throttle import BudgetExceeded, add_throttle_args, throttle_from_args
@@ -45,24 +51,23 @@ from games.player_roles import player_role_declaration
 from negotiationarena.agents.chatgpt import ChatGPTAgent
 from negotiationarena.agents.scripted_seller import FixedFirstOfferSellerAgent
 from negotiationarena.constants import AGENT_ONE, AGENT_TWO, MONEY_TOKEN
-from negotiationarena.game_objects.goal import (
-    BuyerGoal,
-    BuyerGoalZH,
-    SellerGoal,
-    SellerGoalZH,
-)
 from negotiationarena.game_objects.resource import Resources
 from negotiationarena.game_objects.valuation import Valuation
 
 load_dotenv(ROOT / ".env")
 
 GAMES = {"en": BuySellGameEN, "zh": BuySellGameZH}
-# (language, prompt_version) -> (seller goal, buyer goal)
-GOALS = {
-    ("en", "v1"): (SellerGoal, BuyerGoal),
-    ("zh", "v1"): (SellerGoalZH, BuyerGoalZH),
-}
 DONE_STATUSES = ("ok", "max_rounds", "rejected")
+
+
+def row_versions(row):
+    """(seller version, buyer version) of a plan row. Plans written before
+    the two were split carry one prompt_version for both sides."""
+    legacy = row.get("prompt_version")
+    return (
+        row.get("seller_prompt_version") or legacy,
+        row.get("buyer_prompt_version") or legacy,
+    )
 
 
 def stage_log_root(stage):
@@ -99,7 +104,9 @@ def build_game(config, profile_name, row, settings):
     lang = row["language"]
     if row["tactic"] != "baseline":
         raise NotImplementedError(f"tactic {row['tactic']} is not implemented yet")
-    seller_goal_cls, buyer_goal_cls = GOALS[(lang, row["prompt_version"])]
+    seller_version, buyer_version = row_versions(row)
+    seller_goal_cls = SELLER_GOALS[(lang, seller_version)]
+    buyer_goal_cls = BUYER_GOALS[(lang, buyer_version)]
     profile = config["model_profiles"][profile_name]
     agent_kwargs = dict(
         model=profile["model"],
@@ -114,7 +121,12 @@ def build_game(config, profile_name, row, settings):
         **agent_kwargs,
     )
     buyer = ChatGPTAgent(agent_name=AGENT_TWO, **agent_kwargs)
-    log_dir = stage_log_root(row["stage"]) / f"{lang}_{row['tactic']}_{profile_name}"
+    # .logs/<stage>/<game_label>/<epoch_ms>/, e.g. .logs/h1/h1_001/...: a
+    # retry lands next to the earlier attempt. Plans from before game
+    # labels keep the older <lang>_<tactic>_<profile> folders.
+    log_dir = stage_log_root(row["stage"]) / (
+        row.get("game_label") or f"{lang}_{row['tactic']}_{profile_name}"
+    )
     game = GAMES[lang](
         players=[seller, buyer],
         iterations=config["iterations"],
@@ -136,7 +148,7 @@ def build_game(config, profile_name, row, settings):
         log_dir=str(log_dir),
     )
     game.language = lang
-    game.prompt_version = row["prompt_version"]
+    game.prompt_version = combined_label(seller_version, buyer_version)
     return game
 
 
@@ -169,6 +181,11 @@ def main():
         "plan_sha256": file_sha256(path),
         "candidates_sha256": file_sha256(ROOT / config["candidates"]),
     }
+
+    # Refuse a plan with a forbidden seller/buyer version pair before any
+    # API call, even if the plan file was edited by hand.
+    for row in plan:
+        check_combination(*row_versions(row))
 
     attempts = attempts_on_disk(args.stage, profile_name)
     pending = [
@@ -213,14 +230,26 @@ def main():
 
         settings = negotiation_settings(config, cases[row["case_id"]], row["structure"], row["language"], glossary)
         game = build_game(config, profile_name, row, settings)
+        seller_version, buyer_version = row_versions(row)
         # Serialized into game_state.json with the rest of the game.
         game.experiment = {
             "run_id": row["run_id"],
             "stage": row["stage"],
             "order": int(row["order"]),
+            **(
+                {
+                    "game_label": row["game_label"],
+                    "game_no": int(row["game_no"]),
+                    "case_no": int(row["case_no"]),
+                }
+                if row.get("game_label")
+                else {}
+            ),
             "pair_id": row["pair_id"],
             "tactic": row["tactic"],
-            "prompt_version": row["prompt_version"],
+            "seller_prompt_version": seller_version,
+            "buyer_prompt_version": buyer_version,
+            "prompt_version": game.prompt_version,
             "language": row["language"],
             "rep": int(row["rep"]),
             "attempt": len(attempts[row["run_id"]]) + 1,
@@ -233,7 +262,7 @@ def main():
             **hashes,
         }
         print(
-            f"=== [{row['order']}/{len(plan)}] {row['run_id']} "
+            f"=== [{row['order']}/{len(plan)}] {row.get('game_label') or row['run_id']} "
             f"B={settings['wtp']} C={settings['cost']} O={settings['seller_first_offer']} "
             f"attempt {game.experiment['attempt']} ==="
         )

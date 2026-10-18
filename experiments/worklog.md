@@ -52,3 +52,19 @@
   讀 `game_state.json`，不經過壞掉的 `Game.from_dict`/`Agent.from_dict`。
 - `summarize.py` 語言判斷修正（資料夾名 → 讀 `run_metadata.language`，
   舊局以系統提示詞內容備援）包含於 commit `50d75734`。
+
+## 2026-10-18
+
+- 主實驗模型改為 `gpt-6-luna` 之後，把 Luna 之前的所有 gpt-4o-mini 紀錄
+  （共 87 局）從 `.logs/` 移到 `.logs_archive/`（已列入 `.gitignore`），
+  沒有刪除，資料夾結構照原樣保留。`.logs/` 只剩 Luna 的局，Viewer 與
+  `results.csv` 只讀 `.logs/`，所以封存的局不會再出現。
+  - 前導 78 局：`baseline_v2`、`probe_v2`、`rephrase_check`（post_fix 42
+    局）、`probe_seller50`、`zh_baseline_test`、`en_baseline_test` 的舊局。
+  - 驗證程式用的測試局 9 局：`smoke_pre_reject_fix`、`smoke_zup`、
+    `smoke/*_gpt4omini`、`en_baseline_test` 中 2026-10-16 的 3 局。
+- 例如寫附錄時要看 gpt-4o-mini 前導，把對應的資料夾從 `.logs_archive/`
+  搬回 `.logs/`，再重新產生 `results.csv`
+  （`python -m experiments.summarize`）即可。比如前導的 42 局（post_fix）
+  是 `baseline_v2`、`probe_v2`、`rephrase_check` 這三個資料夾。
+- 另外，`backups/` 裡的 `logs_*.zip` 也都有這些局的完整備份。

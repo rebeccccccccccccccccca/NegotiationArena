@@ -1,0 +1,11 @@
+order,run_id,stage,case_id,pool_rank,role,structure,tactic,prompt_version,language,rep,pair_id
+1,pilot_luna10:aaa-71080476:narrow:baseline:v1:r1:zh,pilot_luna10,aaa-71080476,125,pool,narrow,baseline,v1,zh,1,aaa-71080476:narrow:baseline:v1:r1
+2,pilot_luna10:BDM-1-70986067:wide:baseline:v1:r1:en,pilot_luna10,BDM-1-70986067,124,pool,wide,baseline,v1,en,1,BDM-1-70986067:wide:baseline:v1:r1
+3,pilot_luna10:aaa-71166153:narrow:baseline:v1:r1:en,pilot_luna10,aaa-71166153,122,pool,narrow,baseline,v1,en,1,aaa-71166153:narrow:baseline:v1:r1
+4,pilot_luna10:aaa-71166153:narrow:baseline:v1:r1:zh,pilot_luna10,aaa-71166153,122,pool,narrow,baseline,v1,zh,1,aaa-71166153:narrow:baseline:v1:r1
+5,pilot_luna10:aaa-71080476:narrow:baseline:v1:r1:en,pilot_luna10,aaa-71080476,125,pool,narrow,baseline,v1,en,1,aaa-71080476:narrow:baseline:v1:r1
+6,pilot_luna10:BDM-1-71016628:no_range:baseline:v1:r1:zh,pilot_luna10,BDM-1-71016628,123,pool,no_range,baseline,v1,zh,1,BDM-1-71016628:no_range:baseline:v1:r1
+7,pilot_luna10:BDM-1-71209288:wide:baseline:v1:r1:zh,pilot_luna10,BDM-1-71209288,121,pool,wide,baseline,v1,zh,1,BDM-1-71209288:wide:baseline:v1:r1
+8,pilot_luna10:BDM-1-70986067:wide:baseline:v1:r1:zh,pilot_luna10,BDM-1-70986067,124,pool,wide,baseline,v1,zh,1,BDM-1-70986067:wide:baseline:v1:r1
+9,pilot_luna10:BDM-1-71209288:wide:baseline:v1:r1:en,pilot_luna10,BDM-1-71209288,121,pool,wide,baseline,v1,en,1,BDM-1-71209288:wide:baseline:v1:r1
+10,pilot_luna10:BDM-1-71016628:no_range:baseline:v1:r1:en,pilot_luna10,BDM-1-71016628,123,pool,no_range,baseline,v1,en,1,BDM-1-71016628:no_range:baseline:v1:r1

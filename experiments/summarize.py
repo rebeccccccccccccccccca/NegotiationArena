@@ -1,6 +1,7 @@
 """
 Scan .logs/<condition>/<epoch_ms>/game_state.json for every BuySellGame run
-and summarize them into experiments/results.csv, one row per game.
+and summarize them into experiments/results.csv, one row per game, plus
+experiments/results/<stage>.csv per experiment stage in game-number order.
 
 Read-only: does not run new games, does not touch runner/ or games/.
 """
@@ -13,11 +14,13 @@ import re
 import subprocess
 from collections import defaultdict
 
+from experiments.goal_versions import GOAL_TYPES, combined_label
 from experiments.run_logger import estimate_cost
 from negotiationarena.constants import MONEY_TOKEN
 
 LOGS_DIR = ".logs"
 OUTPUT_CSV = os.path.join("experiments", "results.csv")
+STAGE_CSV_DIR = os.path.join("experiments", "results")
 
 # Commit that fixed the from_name_and_tag_to_message tag/content swap bug
 # (negotiationarena/utils.py). Any game whose recorded git_commit is this
@@ -42,6 +45,8 @@ FIELDNAMES = [
     "model_version",
     "language",
     "prompt_version",
+    "seller_prompt_version",
+    "buyer_prompt_version",
     "data_version",
     "status",
     "temperature",
@@ -69,56 +74,52 @@ FIELDNAMES = [
 # game_state.json's `experiment`.
 EXPERIMENT_FIELDS = [
     "stage",
+    "game_label",
+    "game_no",
+    "order",
     "profile",
     "reasoning_effort",
     "run_id",
     "pair_id",
     "attempt",
+    "case_no",
+    "pool_rank",
     "case_id",
     "category_code",
+    "category_label",
     "structure",
     "tactic",
     "buyer_funds",
 ]
 FIELDNAMES += EXPERIMENT_FIELDS
 
-# v1: the goal sentence introduced by task02 ("Never sell below cost." /
-# "絕對不要低於成本出售"). A log whose seller system prompt has neither
-# marker predates that change (v0).
-V1_MARKERS = ("Never sell below cost", "絕對不要低於成本出售")
-
-# v2: task04's semantically-equivalent paraphrase of the same cost
-# sentence (SellerGoalV2 / SellerGoalZHV2), used to check whether the
-# seller's opening-price behaviour is wording-sensitive. Checked first
-# since v2 doesn't contain the v1 markers.
-V2_MARKERS = (
-    "Your goal is to earn as much",
-    "你的目標是從這筆交易中賺到越多",
-)
+# Sentences task02 added to each side's goal (v1). A v1 goal class whose
+# system prompt lacks its side's marker is the upstream wording (v0): the
+# two share a class, so only the text tells them apart.
+V1_MARKERS = {
+    "seller": ("Never sell below cost", "絕對不要低於成本出售"),
+    "buyer": ("Never pay more than that", "絕對不要超過這個金額"),
+}
 
 
-def detect_prompt_version_from_prompt(red_system_prompt):
-    """Text-marker fallback for logs with no run_metadata.prompt_version."""
-    if not red_system_prompt:
-        return "unknown"
-    if any(marker in red_system_prompt for marker in V2_MARKERS):
-        return "v2"
-    if any(marker in red_system_prompt for marker in V1_MARKERS):
-        return "v1"
-    return "v0"
-
-
-def resolve_prompt_version(run_metadata, red_system_prompt):
+def goal_versions_played(settings, system_prompts):
     """
-    Prefer the version the runner actually recorded
-    (run_metadata.prompt_version, set directly by the runner/probe/pilot
-    script -- ground truth, not a guess), same pattern as
-    resolve_language(). Older logs never recorded this, so fall back to
-    the text-marker detection above.
+    (seller version, buyer version) of the goal sentences a game actually
+    ran with, read from the goal objects serialized into game_state.json
+    -- not from the label a runner reported, which only had room for one
+    version for both sides. system_prompts: {"seller": ..., "buyer": ...},
+    used only to tell v0 from v1.
     """
-    if isinstance(run_metadata, dict) and run_metadata.get("prompt_version"):
-        return run_metadata["prompt_version"]
-    return detect_prompt_version_from_prompt(red_system_prompt)
+    versions = {}
+    for goal, side in zip(settings["player_goals"], ("seller", "buyer")):
+        inner = goal.get("_value") if goal.get("_type") == "goal" else goal
+        side_found, version = GOAL_TYPES.get((inner or {}).get("_type"), (side, "unknown"))
+        if version == "v1" and not any(
+            m in (system_prompts[side] or "") for m in V1_MARKERS[side]
+        ):
+            version = "v0"
+        versions[side_found] = version
+    return versions.get("seller", "unknown"), versions.get("buyer", "unknown")
 
 
 def trade_price(trade_obj, giver):
@@ -205,13 +206,16 @@ def summarize_game(game_id, path):
     red = next(p for p in d["players"] if p["agent_name"] == "Player RED")
     blue = next(p for p in d["players"] if p["agent_name"] == "Player BLUE")
 
-    red_system_prompt = next(
-        (m["content"] for m in red["conversation"] if m["role"] == "system"),
-        None,
+    red_system_prompt, blue_system_prompt = (
+        next((m["content"] for m in p["conversation"] if m["role"] == "system"), None)
+        for p in (red, blue)
     )
 
     experiment = d.get("experiment") or {}
     settings = d["game_state"][0]["settings"]
+    seller_version, buyer_version = goal_versions_played(
+        settings, {"seller": red_system_prompt, "buyer": blue_system_prompt}
+    )
     valuations = settings["player_valuation"]
     cost = valuation_x(valuations[0])
     wtp = valuation_x(valuations[1])
@@ -354,7 +358,9 @@ def summarize_game(game_id, path):
         "model": blue.get("model"),
         "model_version": model_served,
         "language": resolve_language(run_metadata, red_system_prompt),
-        "prompt_version": resolve_prompt_version(run_metadata, red_system_prompt),
+        "prompt_version": combined_label(seller_version, buyer_version),
+        "seller_prompt_version": seller_version,
+        "buyer_prompt_version": buyer_version,
         "data_version": data_version,
         "status": status,
         "temperature": blue.get("temperature"),
@@ -381,6 +387,36 @@ def summarize_game(game_id, path):
     }
 
 
+# The order plan.py loops in (experiment_config.json lists structures and
+# languages this way), for numbering stages planned before game labels.
+STRUCTURE_ORDER = {"wide": 0, "narrow": 1, "no_range": 2}
+LANGUAGE_ORDER = {"en": 0, "zh": 1}
+
+
+def number_unlabelled_stages(rows):
+    """Stages planned before plan.py gave out game labels: number their
+    games the way plan.py does now -- by case, then structure, then
+    language -- so every stage reads the same way. Retries of a game get
+    its number too."""
+    by_stage = defaultdict(list)
+    for row in rows:
+        if row["stage"] and not row["game_label"]:
+            by_stage[row["stage"]].append(row)
+    for stage, stage_rows in by_stage.items():
+        def key(r):
+            return (
+                r["pool_rank"],
+                STRUCTURE_ORDER.get(r["structure"], len(STRUCTURE_ORDER)),
+                LANGUAGE_ORDER.get(r["language"], len(LANGUAGE_ORDER)),
+            )
+        case_no = {rank: i for i, rank in enumerate(sorted({r["pool_rank"] for r in stage_rows}), 1)}
+        game_no = {k: i for i, k in enumerate(sorted({key(r) for r in stage_rows}), 1)}
+        for r in stage_rows:
+            r["case_no"] = case_no[r["pool_rank"]]
+            r["game_no"] = game_no[key(r)]
+            r["game_label"] = f"{stage}_{r['game_no']:03d}"
+
+
 def main():
     rows = []
     # Recursive: some conditions nest an extra level of subfolders (e.g.
@@ -391,6 +427,7 @@ def main():
         norm = path.replace("\\", "/")
         game_id = norm[len(LOGS_DIR) + 1 : -len("/game_state.json")]
         rows.append(summarize_game(game_id, path))
+    number_unlabelled_stages(rows)
 
     os.makedirs(os.path.dirname(OUTPUT_CSV), exist_ok=True)
     with open(OUTPUT_CSV, "w", newline="", encoding="utf-8") as f:
@@ -399,6 +436,22 @@ def main():
         writer.writerows(rows)
 
     print(f"Wrote {len(rows)} rows to {OUTPUT_CSV}")
+
+    # One table per stage (h1, h2, pilot_..., ...) in game-number order, so
+    # a stage's statistics never pick up another stage's games.
+    by_stage = defaultdict(list)
+    for row in rows:
+        if row["stage"]:
+            by_stage[row["stage"]].append(row)
+    os.makedirs(STAGE_CSV_DIR, exist_ok=True)
+    for stage, stage_rows in sorted(by_stage.items()):
+        stage_rows.sort(key=lambda r: (r["game_no"], r["attempt"] or 0))
+        path = os.path.join(STAGE_CSV_DIR, f"{stage}.csv")
+        with open(path, "w", newline="", encoding="utf-8-sig") as f:
+            writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+            writer.writeheader()
+            writer.writerows(stage_rows)
+        print(f"Wrote {len(stage_rows)} rows to {path}")
 
     by_lang = defaultdict(lambda: {"n": 0, "failed": 0})
     for row in rows:

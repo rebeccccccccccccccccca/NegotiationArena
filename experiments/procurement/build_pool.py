@@ -83,6 +83,7 @@ EXCLUSION_ORDER = [
     ("pharma_defense", "藥品、國防（含涉及國家安全）"),
     ("insufficient_item", "標的資訊不足（非單一品項、合併多項或缺數量）"),
     ("award_over_budget", "決標金額高於預算（資料異常）"),
+    ("used_in_pilot", "已用於探索性前導（pool_rules.json）"),
     ("category_not_selected", "品項不在白名單（pool_rules.json）"),
     ("budget_out_of_range", "預算超出金額範圍或級距（pool_rules.json）"),
 ]
@@ -142,6 +143,7 @@ def parse_roles(spec):
 def load_rules():
     rules = json.loads(POOL_RULES_PATH.read_text(encoding="utf-8"))
     rules["category_whitelist"] = [str(c) for c in rules["category_whitelist"]]
+    rules["exclude_case_ids"] = set(rules.get("exclude_case_ids", []))
     if MANIFEST_PATH.exists():
         recorded = json.loads(MANIFEST_PATH.read_text(encoding="utf-8")).get("pool_rules")
         if recorded and recorded["frozen"] and recorded["sha256"] != sha256(POOL_RULES_PATH):
@@ -277,7 +279,13 @@ def scope_exclusion(row, rules):
 
 def exclusion(row, rules):
     reason = base_exclusion(row)
-    return reason if reason[0] else scope_exclusion(row, rules)
+    if reason[0]:
+        return reason
+    # Played in an exploratory pilot: kept out of every role, so formal
+    # and calibration cases are all unseen.
+    if row["case_id"] in rules["exclude_case_ids"]:
+        return "used_in_pilot", ""
+    return scope_exclusion(row, rules)
 
 
 def assign_roles(n, roles):

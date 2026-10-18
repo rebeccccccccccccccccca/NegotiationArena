@@ -1,22 +1,22 @@
 ﻿category_code,name_zh,name_en,in_whitelist,n_passed_base,n_eligible,budget_min,budget_p25,budget_median,budget_p75,budget_max,n_未達公告金額,n_公告金額以上未達查核金額,n_查核金額以上未達巨額,n_巨額
-ALL,,,,586,586,101378.0,464266.0,1102158.0,3300000.0,1169772623.0,345,234,5,2
-481,"醫療, 外科及矯形設備",Medical and surgical equipment and orthopaedic appliances,,61,61,168000.0,530000.0,1350000.0,3800000.0,35980000.0,33,28,0,0
+ALL,,,,580,580,101378.0,462457.0,1102158.0,3317500.0,1169772623.0,342,231,5,2
+481,"醫療, 外科及矯形設備",Medical and surgical equipment and orthopaedic appliances,,59,59,168000.0,540000.0,1350000.0,4197000.0,35980000.0,32,27,0,0
 452,計算機及其零件與配件,Computing machinery and parts and accessories thereof (for ADP),,47,47,195000.0,356800.0,840000.0,1780000.0,66150000.0,33,12,2,0
 32,"紙漿,紙及紙產品;印刷品及相關的商品","Pulp, paper and paper products; printed matter and related articles",,47,47,156420.0,301031.0,596000.0,855672.0,31500000.0,37,9,1,0
 482,做為測量、檢查、航行及其他目的用之儀器和裝置，除光學儀器; 工業程序控制設備; 上述各項之零件及附件,"Instruments and appliances for measuring checking, testing, navigating and other purposes, except optical instruments; industrial process control equipment; parts and accessories thereof",,39,39,221000.0,830854.5,2695000.0,4919413.5,47799990.0,15,24,0,0
-449,其他特殊用途之機具及其零件,Other special purpose machinery and parts thereof,,27,27,210800.0,706291.0,2037500.0,5777442.0,30000000.0,12,15,0,0
+449,其他特殊用途之機具及其零件,Other special purpose machinery and parts thereof,,26,26,210800.0,695986.5,1808750.0,4947297.5,30000000.0,12,14,0,0
 389,其他製造商品,Other manufactured articles n.e.c.,,20,20,163800.0,465645.0,747746.0,1895735.75,10000000.0,14,6,0,0
 282,"成衣, 毛皮服裝除外","Wearing apparel, except fur apparel",,18,18,180000.0,260000.0,811000.0,2130582.5,5566850.0,13,5,0,0
 462,電力傳輸、控制設備及其零件,"Electricity distribution and control apparatus, and parts thereof",,18,18,300000.0,1130625.0,4871500.0,22574731.0,163225612.0,5,11,1,1
 381,傢具,Furniture,,18,18,185500.0,466437.5,850348.0,2301378.75,7927465.0,11,7,0,0
-4393,其他通用機具,General purpose machinery n.e.c.,,18,18,149600.0,504973.5,983975.0,1434227.5,3300000.0,13,5,0,0
+4393,其他通用機具,General purpose machinery n.e.c.,,17,17,149600.0,600000.0,1072000.0,1478970.0,3300000.0,12,5,0,0
 21,"肉類, 魚, 果實, 蔬菜,及油脂","Meat, fish, fruit, vegetables, oils and fats",,17,17,346368.0,630000.0,1400000.0,4900760.0,14703800.0,10,7,0,0
-47,"收音機、電視, 通訊器材及儀器","Radio, television and communication equipment and apparatus",,16,16,299950.0,595000.0,1258462.5,1963750.0,4850000.0,10,6,0,0
-421,結構金屬產品及其零件,Structural metal products and parts thereof,,15,15,226485.0,522000.0,1200000.0,6204780.0,40889318.0,8,7,0,0
 34,基本化學產品,Basic chemicals,,15,15,236500.0,372980.0,945000.0,6651666.5,1169772623.0,9,4,1,1
+47,"收音機、電視, 通訊器材及儀器","Radio, television and communication equipment and apparatus",,15,15,299950.0,530000.0,1336125.0,2142500.0,4850000.0,9,6,0,0
+421,結構金屬產品及其零件,Structural metal products and parts thereof,,15,15,226485.0,522000.0,1200000.0,6204780.0,40889318.0,8,7,0,0
 469,其他電力設備及零件,Other electrical equipment and parts thereof,,13,13,231650.0,658000.0,1470000.0,6237000.0,34920000.0,9,4,0,0
 23,"穀粉, 澱粉及澱粉製品; 其他食品","Grain mill products, starches and starch products; other food products",,13,13,182952.0,336000.0,808046.0,1470000.0,13083000.0,9,4,0,0
-4391,氣體產生器; 蒸餾設備; 冷凍及空調設備; 過濾機具,Gas generators; distilling plant; air conditioning and refrigerating equipment; filtering machinery,,12,12,300000.0,1119240.0,2595067.0,5907000.0,32826360.0,4,8,0,0
+4391,氣體產生器; 蒸餾設備; 冷凍及空調設備; 過濾機具,Gas generators; distilling plant; air conditioning and refrigerating equipment; filtering machinery,,11,11,300000.0,939880.0,2400000.0,6423000.0,32826360.0,4,7,0,0
 432,"幫浦, 壓縮機, 液壓與氣動引擎, 閥門及其零件","Pumps, compressors, hydraulic and pneumatic power engines, and valves, and parts thereof",,10,10,105458.0,511875.0,2341000.0,6597412.5,30784215.0,4,6,0,0
 491,"機動車, 拖車, 半拖車; 車輛機件","Motor vehicles, trailers and semi- trailers; parts and accessories thereof",,10,10,213000.0,2362500.0,6687500.0,8126250.0,48000000.0,2,8,0,0
 483,"光學儀器, 攝影設備及其零件與附件","Optical instruments and photographic equipment, and parts and accessories thereof",,9,9,230000.0,537559.0,683202.0,959700.0,9447900.0,8,1,0,0
