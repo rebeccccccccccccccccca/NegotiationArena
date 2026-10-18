@@ -1,5 +1,5 @@
 ﻿category_code,name_zh,name_en,in_whitelist,n_passed_base,n_eligible,budget_min,budget_p25,budget_median,budget_p75,budget_max,n_未達公告金額,n_公告金額以上未達查核金額,n_查核金額以上未達巨額,n_巨額
-ALL,,,,580,580,101378.0,462457.0,1102158.0,3317500.0,1169772623.0,342,231,5,2
+ALL,,,,579,579,101378.0,461638.0,1100000.0,3300000.0,1169772623.0,342,230,5,2
 481,"醫療, 外科及矯形設備",Medical and surgical equipment and orthopaedic appliances,,59,59,168000.0,540000.0,1350000.0,4197000.0,35980000.0,32,27,0,0
 452,計算機及其零件與配件,Computing machinery and parts and accessories thereof (for ADP),,47,47,195000.0,356800.0,840000.0,1780000.0,66150000.0,33,12,2,0
 32,"紙漿,紙及紙產品;印刷品及相關的商品","Pulp, paper and paper products; printed matter and related articles",,47,47,156420.0,301031.0,596000.0,855672.0,31500000.0,37,9,1,0
@@ -17,9 +17,9 @@ ALL,,,,580,580,101378.0,462457.0,1102158.0,3317500.0,1169772623.0,342,231,5,2
 469,其他電力設備及零件,Other electrical equipment and parts thereof,,13,13,231650.0,658000.0,1470000.0,6237000.0,34920000.0,9,4,0,0
 23,"穀粉, 澱粉及澱粉製品; 其他食品","Grain mill products, starches and starch products; other food products",,13,13,182952.0,336000.0,808046.0,1470000.0,13083000.0,9,4,0,0
 4391,氣體產生器; 蒸餾設備; 冷凍及空調設備; 過濾機具,Gas generators; distilling plant; air conditioning and refrigerating equipment; filtering machinery,,11,11,300000.0,939880.0,2400000.0,6423000.0,32826360.0,4,7,0,0
-432,"幫浦, 壓縮機, 液壓與氣動引擎, 閥門及其零件","Pumps, compressors, hydraulic and pneumatic power engines, and valves, and parts thereof",,10,10,105458.0,511875.0,2341000.0,6597412.5,30784215.0,4,6,0,0
 491,"機動車, 拖車, 半拖車; 車輛機件","Motor vehicles, trailers and semi- trailers; parts and accessories thereof",,10,10,213000.0,2362500.0,6687500.0,8126250.0,48000000.0,2,8,0,0
 483,"光學儀器, 攝影設備及其零件與附件","Optical instruments and photographic equipment, and parts and accessories thereof",,9,9,230000.0,537559.0,683202.0,959700.0,9447900.0,8,1,0,0
+432,"幫浦, 壓縮機, 液壓與氣動引擎, 閥門及其零件","Pumps, compressors, hydraulic and pneumatic power engines, and valves, and parts thereof",,9,9,105458.0,472500.0,1722000.0,4840500.0,30784215.0,4,5,0,0
 448,家用電器及其零件,Domestic appliances and parts thereof,,9,9,228716.0,775000.0,1200000.0,2660000.0,4154000.0,5,4,0,0
 31,"木製品, 軟木製品, 草及編結材料產品","Products of wood, cork, straw and plaiting materials",,9,9,180000.0,599400.0,750000.0,1104316.0,4300000.0,7,2,0,0
 384,運動商品,Sports goods,,7,7,195556.0,306000.0,650980.0,1293325.0,3940790.0,6,1,0,0

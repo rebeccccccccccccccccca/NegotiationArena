@@ -8,6 +8,6 @@ lease_maint_software,租賃、維護、軟體類,62.0,685
 pharma_defense,藥品、國防（含涉及國家安全）,92.0,593
 insufficient_item,標的資訊不足（非單一品項、合併多項或缺數量）,7.0,586
 award_over_budget,決標金額高於預算（資料異常）,0.0,586
-used_in_pilot,已用於探索性前導（pool_rules.json）,6.0,580
-category_not_selected,品項不在白名單（pool_rules.json）,0.0,580
-budget_out_of_range,預算超出金額範圍或級距（pool_rules.json）,0.0,580
+used_in_pilot,已用於探索性前導（pool_rules.json）,7.0,579
+category_not_selected,品項不在白名單（pool_rules.json）,0.0,579
+budget_out_of_range,預算超出金額範圍或級距（pool_rules.json）,0.0,579

@@ -21,6 +21,7 @@ Usage (from the repo root):
 import argparse
 import csv
 import json
+import subprocess
 import traceback
 from collections import defaultdict
 
@@ -58,6 +59,25 @@ load_dotenv(ROOT / ".env")
 
 GAMES = {"en": BuySellGameEN, "zh": BuySellGameZH}
 DONE_STATUSES = ("ok", "max_rounds", "rejected")
+# Files a run itself appends to (or that only hold notes); a change to
+# them doesn't change what a game runs, so they don't make the tree dirty.
+RUN_OUTPUTS = {"experiments/runs.jsonl", "experiments/worklog.md"}
+
+
+def uncommitted_changes():
+    """Modified or untracked files, other than RUN_OUTPUTS. A game only
+    records the HEAD commit, so with anything listed here that commit is
+    not the code that actually ran."""
+    out = subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=all"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=True,
+    ).stdout
+    paths = [line[3:].strip().strip('"') for line in out.splitlines() if line.strip()]
+    return [p for p in paths if p not in RUN_OUTPUTS]
 
 
 def row_versions(row):
@@ -187,6 +207,18 @@ def main():
     for row in plan:
         check_combination(*row_versions(row))
 
+    # Formal stages only run from a clean tree, so the commit each game
+    # records is the code that ran; pilots and smoke tests may run from a
+    # dirty tree but record which files differed.
+    changes = uncommitted_changes()
+    if changes and config["stages"].get(args.stage, {}).get("formal") and not args.dry_run:
+        raise SystemExit(
+            f"{args.stage} is a formal stage; commit these first, so the commit "
+            "recorded with each game is the code that ran:\n  " + "\n  ".join(changes)
+        )
+    if changes:
+        print(f"NOTE: {len(changes)} uncommitted file(s), recorded in each game's experiment.uncommitted_changes")
+
     attempts = attempts_on_disk(args.stage, profile_name)
     pending = [
         r for r in plan if not any(s in DONE_STATUSES for s in attempts[r["run_id"]])
@@ -258,6 +290,7 @@ def main():
             "reasoning_effort": profile["reasoning_effort"],
             "temperature": profile["temperature"],
             "iterations": config["iterations"],
+            "uncommitted_changes": changes,
             **settings,
             **hashes,
         }

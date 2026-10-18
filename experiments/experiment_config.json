@@ -38,9 +38,10 @@
   },
   "category_glossary": "data/procurement/category_glossary.csv",
   "candidates": "data/procurement/candidates.csv",
-  "_comment_stages": "Each stage crosses seller_prompt_versions x buyer_prompt_versions (experiments/goal_versions.py); only one side may leave v1 in a game, and plan.py refuses a stage that would pair two off-baseline versions.",
+  "_comment_stages": "Each stage crosses seller_prompt_versions x buyer_prompt_versions (experiments/goal_versions.py); only one side may leave v1 in a game, and plan.py refuses a stage that would pair two off-baseline versions. formal: true makes batch_runner refuse to run while code is uncommitted.",
   "stages": {
     "h1": {
+      "formal": true,
       "roles": ["stage1_2"],
       "languages": ["en", "zh"],
       "structures": ["wide", "narrow", "no_range"],
@@ -61,6 +62,17 @@
       "buyer_prompt_versions": ["v1"],
       "reps": 1,
       "seed": 20261017
+    },
+    "smoke_seller": {
+      "roles": ["pool"],
+      "max_cases": 1,
+      "languages": ["en", "zh"],
+      "structures": ["narrow"],
+      "tactics": ["baseline"],
+      "seller_prompt_versions": ["v1"],
+      "buyer_prompt_versions": ["v1"],
+      "reps": 1,
+      "seed": 1
     },
     "smoke_v3": {
       "roles": ["pool"],
