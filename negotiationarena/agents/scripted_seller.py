@@ -1,5 +1,8 @@
 import re
+import time
+from decimal import Decimal
 
+from negotiationarena.agents.agents import Agent
 from negotiationarena.agents.chatgpt import ChatGPTAgent
 from negotiationarena.constants import (
     MONEY_TOKEN,
@@ -12,7 +15,12 @@ from negotiationarena.constants import (
     GOALS_TAG,
     REASONING_TAG,
     MESSAGE_TAG,
+    ACCEPTING_TAG,
+    REJECTION_TAG,
+    REFUSING_OR_WAIT_TAG,
 )
+from negotiationarena.parser import ExchangeGameDefaultParser
+from negotiationarena.utils import get_tag_contents
 
 
 SCRIPTED_MESSAGE_TEMPLATES = {
@@ -31,6 +39,35 @@ SCRIPTED_REASON_TEMPLATES = {
     "zh": "我以這個價格作為開價。",
 }
 GOALS_RE = re.compile(rf"<{GOALS_TAG}>(.*?)</{GOALS_TAG}>", re.S)
+
+
+def own_goal_text(conversation):
+    """The goal sentence in a seller's system prompt: what a model seller
+    writes back in <my goals> on its own turns."""
+    system = next(m["content"] for m in conversation if m["role"] == "system")
+    match = GOALS_RE.search(system)
+    return match.group(1).strip() if match else ""
+
+
+def seller_turn(proposal_count, goal_text, reason, answer, message, price=None,
+                resource_name="X", resource_amount=1):
+    """A complete seller response in the format the prompt asks for: a
+    trade when `price` is given (a PROPOSAL), NONE otherwise."""
+    trade = (
+        f"{AGENT_ONE} Gives {resource_name}: {resource_amount} | "
+        f"{AGENT_TWO} Gives {MONEY_TOKEN}: {price}"
+        if price is not None
+        else REFUSING_OR_WAIT_TAG
+    )
+    return (
+        f"<{PROPOSAL_COUNT_TAG}> {proposal_count} </{PROPOSAL_COUNT_TAG}>\n"
+        f"<{RESOURCES_TAG}> {resource_name}: {resource_amount} </{RESOURCES_TAG}>\n"
+        f"<{GOALS_TAG}> {goal_text} </{GOALS_TAG}>\n"
+        f"<{REASONING_TAG}> {reason} </{REASONING_TAG}>\n"
+        f"<{PLAYER_ANSWER_TAG}> {answer} </{PLAYER_ANSWER_TAG}>\n"
+        f"<{PROPOSED_TRADE_TAG}> {trade} </{PROPOSED_TRADE_TAG}>\n"
+        f"<{MESSAGE_TAG}> {message} </{MESSAGE_TAG}>"
+    )
 
 
 class FixedFirstOfferSellerAgent(ChatGPTAgent):
@@ -65,24 +102,213 @@ class FixedFirstOfferSellerAgent(ChatGPTAgent):
             return self._scripted_first_offer()
         return super().chat()
 
-    def _own_goal_text(self):
-        """The goal sentence in the seller's system prompt: what the model
-        itself writes back in <my goals> on its later turns."""
-        system = next(m["content"] for m in self.conversation if m["role"] == "system")
-        match = GOALS_RE.search(system)
-        return match.group(1).strip() if match else ""
-
     def _scripted_first_offer(self):
-        message = SCRIPTED_MESSAGE_TEMPLATES[self.language].format(
-            price=self.first_offer, money=MONEY_TOKEN
+        return seller_turn(
+            1,
+            own_goal_text(self.conversation),
+            SCRIPTED_REASON_TEMPLATES[self.language],
+            "PROPOSAL",
+            SCRIPTED_MESSAGE_TEMPLATES[self.language].format(
+                price=self.first_offer, money=MONEY_TOKEN
+            ),
+            price=self.first_offer,
+            resource_name=self.resource_name,
+            resource_amount=self.resource_amount,
         )
-        return (
-            f"<{PROPOSAL_COUNT_TAG}> 1 </{PROPOSAL_COUNT_TAG}>\n"
-            f"<{RESOURCES_TAG}> {self.resource_name}: {self.resource_amount} </{RESOURCES_TAG}>\n"
-            f"<{GOALS_TAG}> {self._own_goal_text()} </{GOALS_TAG}>\n"
-            f"<{REASONING_TAG}> {SCRIPTED_REASON_TEMPLATES[self.language]} </{REASONING_TAG}>\n"
-            f"<{PLAYER_ANSWER_TAG}> PROPOSAL </{PLAYER_ANSWER_TAG}>\n"
-            f"<{PROPOSED_TRADE_TAG}> {AGENT_ONE} Gives {self.resource_name}: {self.resource_amount} | "
-            f"{AGENT_TWO} Gives {MONEY_TOKEN}: {self.first_offer} </{PROPOSED_TRADE_TAG}>\n"
-            f"<{MESSAGE_TAG}> {message} </{MESSAGE_TAG}>"
+
+
+# Private reasoning of the fully scripted seller. No model reads it (the
+# buyer never sees <reason>); it only keeps the logged turns readable.
+SCRIPT_REASONS = {
+    "en": {
+        "counter": "I will offer this price.",
+        "accept": "The offer meets my price.",
+        "reject": "The offer is below what I can accept.",
+    },
+    "zh": {
+        "counter": "我以這個價格提出報價。",
+        "accept": "這個出價符合我的價格。",
+        "reject": "這個出價低於我能接受的價格。",
+    },
+}
+
+
+def round_down_to_step(x, step):
+    """x rounded down to a multiple of step."""
+    return int(Decimal(str(x)) // step) * step
+
+
+def concession_path(first_offer, cost, n_proposals, beta=1.0, step=1000):
+    """The seller's asking price for proposals 1..n_proposals.
+
+    Proposal 1 is the opening offer itself, unrounded, so it matches the
+    H1 seller's scripted opening exactly. Proposal k > 1 asks
+        first_offer - (first_offer - cost) * ((k - 1) / (n_proposals - 1)) ** (1 / beta)
+    rounded down to `step` (never above that path, so e.g. the ask that
+    the path puts exactly at the buyer's budget is not pushed over it):
+    beta = 1 concedes in equal steps, beta < 1 holds out and concedes late
+    (Boulware), beta > 1 concedes early. The last proposal reaches the
+    floor, cost rounded up to `step`, so no ask is ever below cost. Asks
+    never rise.
+    """
+    floor_ask = -(-cost // step) * step
+    asks = [first_offer]
+    for k in range(2, n_proposals + 1):
+        share = ((k - 1) / (n_proposals - 1)) ** (1 / beta)
+        ask = round_down_to_step(first_offer - (first_offer - cost) * share, step)
+        asks.append(min(max(ask, floor_ask), asks[-1]))
+    return asks
+
+
+def buyer_offer(message, buyer_funds=None):
+    """The amount of money the buyer's last turn offers for the item, or
+    None if that turn was not a valid proposal of exactly X: 1 for money.
+
+    Read with the game's own trade parser from the public part of the
+    buyer's turn (what the seller is shown). Anything else counts as no
+    offer: no PROPOSAL, trade NONE, another X amount, extra resources, a
+    non-positive price, or one above the buyer's funds."""
+    if not message:
+        return None
+    if get_tag_contents(message, PLAYER_ANSWER_TAG).strip() != "PROPOSAL":
+        return None
+    trade_text = get_tag_contents(message, PROPOSED_TRADE_TAG).strip()
+    if not trade_text or trade_text == REFUSING_OR_WAIT_TAG:
+        return None
+    try:
+        # parse_proposed_trade does not use its parser instance.
+        trade = ExchangeGameDefaultParser.parse_proposed_trade(None, trade_text)
+    except Exception:
+        return None
+    seller, buyer = AGENT_ONE.split()[-1], AGENT_TWO.split()[-1]
+    if set(trade) != {seller, buyer} or trade[seller] != {"X": 1}:
+        return None
+    if set(trade[buyer]) != {MONEY_TOKEN}:
+        return None
+    price = trade[buyer][MONEY_TOKEN]
+    if price <= 0 or (buyer_funds is not None and price > buyer_funds):
+        return None
+    return price
+
+
+class ScriptedSellerAgent(Agent):
+    """
+    A seller that never calls a model (experiment B): every turn follows
+    fixed rules, so the seller behaves the same in both languages and
+    only the buyer is a model.
+
+    - Turn 1 is the H1 seller's scripted opening, word for word.
+    - Its k-th proposal asks concession_path(...)[k-1]: a time-dependent
+      path from the opening offer down to cost that ignores what the
+      buyer offers.
+    - On turns 2..max_proposals it accepts the buyer's latest valid offer
+      if that offer is at least the price it would ask now (AC_next);
+      otherwise it makes its next proposal.
+    - On its last turn (proposals used up) it accepts a valid offer at or
+      above cost and rejects anything else, so a game with this seller
+      always ends by the seller's 10th turn.
+    - It never reads the buyer's <message> and never mentions cost,
+      budget or a reason for its price.
+
+    `templates` holds the counter / accept / reject messages per language
+    (experiment_config.json `scripted_seller.templates`); each situation
+    cycles through its variants in order, so both languages say the same
+    thing at the same point. Every decision is kept in `decisions`, which
+    is saved with the game state.
+    """
+
+    def __init__(
+        self,
+        agent_name,
+        first_offer,
+        cost,
+        templates,
+        language="en",
+        max_proposals=9,
+        concession_beta=1.0,
+        rounding=1000,
+        buyer_funds=None,
+        script_version=None,
+        resource_name="X",
+        resource_amount=1,
+        **_ignored,  # the other fields of a saved state (Agent.from_dict)
+    ):
+        super().__init__(agent_name)
+        self.run_epoch_time_ms = str(round(time.time() * 1000))
+        self.conversation = []
+        self.prompt_entity_initializer = "system"
+        self.first_offer = first_offer
+        self.cost = cost
+        self.templates = templates
+        self.language = language
+        self.max_proposals = max_proposals
+        self.concession_beta = concession_beta
+        self.rounding = rounding
+        self.buyer_funds = buyer_funds
+        self.script_version = script_version
+        self.resource_name = resource_name
+        self.resource_amount = resource_amount
+        self.asks = concession_path(first_offer, cost, max_proposals, concession_beta, rounding)
+        self.turns_taken = 0
+        self.proposals_made = 0
+        self.template_uses = {}
+        self.decisions = []
+
+    def init_agent(self, system_prompt, role):
+        # Same history layout as a model seller (system prompt, then the
+        # role as the first user turn), so the logs read the same way.
+        self.conversation = []
+        self.update_conversation_tracking(self.prompt_entity_initializer, system_prompt)
+        self.update_conversation_tracking("user", role)
+
+    def update_conversation_tracking(self, role, message):
+        self.conversation.append({"role": role, "content": message})
+
+    def _message(self, situation, price=None):
+        variants = self.templates[self.language][situation]
+        i = self.template_uses.get(situation, 0)
+        self.template_uses[situation] = i + 1
+        return variants[i % len(variants)].format(price=price, money=MONEY_TOKEN)
+
+    def _turn(self, answer, reason, message, price=None):
+        return seller_turn(
+            self.proposals_made,
+            own_goal_text(self.conversation),
+            reason,
+            answer,
+            message,
+            price=price,
+            resource_name=self.resource_name,
+            resource_amount=self.resource_amount,
         )
+
+    def chat(self):
+        self.turns_taken += 1
+        turn = self.turns_taken
+        if turn == 1:
+            self.proposals_made = 1
+            self.decisions.append({"turn": 1, "buyer_offer": None, "ask": self.first_offer, "action": "PROPOSAL"})
+            return self._turn(
+                "PROPOSAL",
+                SCRIPTED_REASON_TEMPLATES[self.language],
+                SCRIPTED_MESSAGE_TEMPLATES[self.language].format(price=self.first_offer, money=MONEY_TOKEN),
+                price=self.first_offer,
+            )
+
+        last = self.conversation[-1]
+        offer = buyer_offer(last["content"] if last["role"] == "user" else None, self.buyer_funds)
+        if turn <= self.max_proposals:
+            ask = self.asks[turn - 1]
+            action = ACCEPTING_TAG if offer is not None and offer >= ask else "PROPOSAL"
+        else:
+            ask = None
+            action = ACCEPTING_TAG if offer is not None and offer >= self.cost else REJECTION_TAG
+        self.decisions.append({"turn": turn, "buyer_offer": offer, "ask": ask, "action": action})
+
+        reasons = SCRIPT_REASONS[self.language]
+        if action == ACCEPTING_TAG:
+            return self._turn(action, reasons["accept"], self._message("accept"))
+        if action == REJECTION_TAG:
+            return self._turn(action, reasons["reject"], self._message("reject"))
+        self.proposals_made += 1
+        return self._turn(action, reasons["counter"], self._message("counter", ask), price=ask)

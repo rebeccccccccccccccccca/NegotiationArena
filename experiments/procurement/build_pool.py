@@ -26,9 +26,21 @@ Outputs in data/procurement/:
 Usage (from the repo root):
   .venv\\Scripts\\python -m experiments.procurement.build_pool
 
-Roles are given out in pool_rank order, in the order `roles` lists them;
-everything after the last role is "pool". Calibration comes first, so
-resizing a later stage never moves a case into or out of calibration.
+Manual coding: with `coding_sheet` set, a case the coder marked
+include = N in that sheet (data/procurement/case_coding.csv, written by
+export_coding_sheet.py, codes in coding_manual.md) is excluded as
+manual_exclusion; with `require_coding` true, any in-scope case not yet
+coded Y or N stops the build.
+
+Roles: `assignment` "sequential" gives them out in pool_rank order, in
+the order `roles` lists them (calibration first, so resizing a later
+stage never moves a case into or out of calibration). "blocked" draws
+the cases the roles need in pool_rank order (a random draw), sorts that
+draw by 2-digit category group and budget, and gives each consecutive
+block the roles in proportion to their sizes, in a seeded random order:
+an implicit stratification, so every role gets a similar mix of
+categories and budgets without strata too small to fill. Everything
+left is "pool".
 
 Reading the ratios: the budget (預算) and the reserve price (底價) are
 both set by the procuring agency, so they sit on the buyer's side (close
@@ -38,11 +50,14 @@ ratio rule; these distributions only keep that rule realistic.
 """
 
 import argparse
+import csv
 import json
 import math
 import random
 import re
 import xml.etree.ElementTree as ET
+from functools import reduce
+from pathlib import Path
 
 import pandas as pd
 
@@ -86,8 +101,9 @@ EXCLUSION_ORDER = [
     ("used_in_pilot", "已用於探索性前導（pool_rules.json）"),
     ("category_not_selected", "品項不在白名單（pool_rules.json）"),
     ("budget_out_of_range", "預算超出金額範圍或級距（pool_rules.json）"),
+    ("manual_exclusion", "人工判讀排除（case_coding.csv）"),
 ]
-SCOPE_RULES = ["category_not_selected", "budget_out_of_range"]
+SCOPE_RULES = ["category_not_selected", "budget_out_of_range", "manual_exclusion"]
 
 AMOUNT_TIERS = ["未達公告金額", "公告金額以上未達查核金額", "查核金額以上未達巨額", "巨額"]
 
@@ -140,10 +156,28 @@ def parse_roles(spec):
     return roles
 
 
+def load_coding(sheet):
+    """case_id -> (include, reason_code) from the manual coding sheet, or
+    {} without one. Only rows coded Y or N count as coded."""
+    if not sheet:
+        return {}
+    path = Path(__file__).resolve().parents[2] / sheet  # relative to the repo root
+    if not path.exists():
+        print(f"WARNING: coding_sheet {sheet} not found; no manual exclusions applied")
+        return {}
+    with open(path, encoding="utf-8-sig", newline="") as f:
+        return {
+            r["case_id"]: (r["include"].strip().upper(), r["reason_code"].strip())
+            for r in csv.DictReader(f)
+            if r["include"].strip().upper() in ("Y", "N")
+        }
+
+
 def load_rules():
     rules = json.loads(POOL_RULES_PATH.read_text(encoding="utf-8"))
     rules["category_whitelist"] = [str(c) for c in rules["category_whitelist"]]
     rules["exclude_case_ids"] = set(rules.get("exclude_case_ids", []))
+    rules["coding"] = load_coding(rules.get("coding_sheet"))
     if MANIFEST_PATH.exists():
         recorded = json.loads(MANIFEST_PATH.read_text(encoding="utf-8")).get("pool_rules")
         if recorded and recorded["frozen"] and recorded["sha256"] != sha256(POOL_RULES_PATH):
@@ -285,7 +319,13 @@ def exclusion(row, rules):
     # and calibration cases are all unseen.
     if row["case_id"] in rules["exclude_case_ids"]:
         return "used_in_pilot", ""
-    return scope_exclusion(row, rules)
+    reason = scope_exclusion(row, rules)
+    if reason[0]:
+        return reason
+    include, code = rules["coding"].get(row["case_id"], ("", ""))
+    if include == "N":
+        return "manual_exclusion", code
+    return "", ""
 
 
 def assign_roles(n, roles):
@@ -294,6 +334,32 @@ def assign_roles(n, roles):
         out += [name] * size
     out = out[:n]
     return out + ["pool"] * (n - len(out))
+
+
+def assign_roles_blocked(eligible, roles, seed):
+    """Implicit stratification (see the module docstring). `eligible` is
+    in pool_rank order with a 0..n-1 index; returns one role per row."""
+    sizes = [size for _, size in roles]
+    unit = reduce(math.gcd, sizes)
+    block = [name for name, size in roles for _ in range(size // unit)]
+    needed = sum(sizes)
+    if len(eligible) < needed:
+        print("WARNING: fewer eligible cases than the roles need; assigning sequentially")
+        return assign_roles(len(eligible), roles)
+    drawn = eligible.iloc[:needed]
+    order = list(
+        drawn.assign(group=drawn["category_code"].str[:2])
+        .sort_values(["group", "budget", "pool_rank"])
+        .index
+    )
+    rng = random.Random(f"{seed}:roles")
+    out = ["pool"] * len(eligible)
+    for start in range(0, needed, len(block)):
+        labels = block[:]
+        rng.shuffle(labels)
+        for idx, label in zip(order[start:start + len(block)], labels):
+            out[idx] = label
+    return out
 
 
 def budget_stats(budget):
@@ -380,11 +446,10 @@ def warn_if_short(df, rules, needed, sample):
     else:
         print("  1) no eligible case at all: check the scope settings before enlarging the sample")
 
-    passed_base = df["exclude_reason"].isin([""] + SCOPE_RULES)
     # Rows failing the whitelist are labelled with it, so dropping the
     # amount range frees exactly the budget_out_of_range rows.
-    n_without_amount = int((passed_base & (df["exclude_reason"] != "category_not_selected")).sum())
-    n_without_both = int(passed_base.sum())
+    n_without_amount = int(df["exclude_reason"].isin(["", "budget_out_of_range"]).sum())
+    n_without_both = int(df["exclude_reason"].isin(["", "budget_out_of_range", "category_not_selected"]).sum())
     amount_set = bool(rules["amount_tiers"]) or rules["budget_min"] is not None or rules["budget_max"] is not None
     if amount_set or rules["category_whitelist"]:
         print("  Only if enlarging is not feasible, relaxing the scope would give, in this order:")
@@ -455,7 +520,19 @@ def main():
     random.Random(rules["seed"]).shuffle(order)
     eligible = eligible.iloc[order].reset_index(drop=True)
     eligible.insert(0, "pool_rank", range(1, len(eligible) + 1))
-    eligible.insert(1, "role", assign_roles(len(eligible), roles))
+    if rules.get("coding_sheet"):
+        uncoded = sorted(set(eligible["case_id"]) - set(rules["coding"]))
+        if uncoded and rules.get("require_coding"):
+            raise SystemExit(f"{len(uncoded)} in-scope cases are not coded Y/N in {rules['coding_sheet']}")
+        if uncoded:
+            print(f"NOTE: {len(uncoded)} in-scope cases not yet coded in {rules['coding_sheet']}\n")
+    eligible.insert(
+        1,
+        "role",
+        assign_roles_blocked(eligible, roles, rules["seed"])
+        if rules.get("assignment") == "blocked"
+        else assign_roles(len(eligible), roles),
+    )
     eligible.drop(columns=["exclude_reason", "exclude_detail"]).to_csv(
         OUT_DIR / "candidates.csv", index=False, encoding="utf-8-sig"
     )

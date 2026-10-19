@@ -4,12 +4,19 @@ Condition allocator: write the run plan for one stage of the experiment.
 Every case assigned to the stage's roles gets every combination of
 language x price structure x tactic x seller prompt version x buyer
 prompt version (x reps), so each case is paired with itself across
-languages. A stage that would pair two off-baseline versions (see
-experiments/goal_versions.py) is refused before anything is written.
-The whole list is then
-shuffled with the stage's seed, so the execution order is random and
-time-of-run effects (API drift, rate limits) fall on both languages
-alike. The plan is written once to experiments/plans/<stage>.csv and is
+languages; `tactic_structures` can limit a tactic to some structures
+(experiment B's scripted seller runs only in narrow). A stage that would
+pair two off-baseline versions (see experiments/goal_versions.py) is
+refused before anything is written.
+Execution order is randomised with the stage's seed by pair: the pairs
+run in random order, and the two languages of a pair run back to back,
+in random order, so a pair's games are minutes apart and a model update
+or API drift during collection hits both sides of a comparison alike.
+With `order_blocks: case` the pairs of one case also run back to back
+(cases in random order, pairs within a case in random order), so the
+comparisons across structures and tactics within a case are close in
+time too.
+The plan is written once to experiments/plans/<stage>.csv and is
 what batch_runner.py executes; it refuses to overwrite an existing plan
 unless --force, so a frozen plan can't change by accident.
 
@@ -20,6 +27,7 @@ Usage (from the repo root):
 import argparse
 import csv
 import random
+from collections import defaultdict
 
 from experiments.cases import CONFIG_PATH, ROOT, file_sha256, load_cases, load_config
 from experiments.goal_versions import check_combination
@@ -71,6 +79,8 @@ def build_plan(config, stage):
         )
         for structure in structures:
             for tactic in spec["tactics"]:
+                if structure not in spec.get("tactic_structures", {}).get(tactic, structures):
+                    continue
                 for seller_version, buyer_version in versions:
                     for rep in range(1, spec["reps"] + 1):
                         pair_id = (
@@ -103,10 +113,29 @@ def build_plan(config, stage):
     for i, row in enumerate(rows, 1):
         row["game_no"] = i
         row["game_label"] = f"{stage}_{i:0{width}d}"
-    random.Random(spec["seed"]).shuffle(rows)
-    for i, row in enumerate(rows, 1):
+    rng = random.Random(spec["seed"])
+    by_pair = defaultdict(list)
+    for row in rows:
+        by_pair[row["pair_id"]].append(row)
+    # Blocks of pairs that run back to back: one block per case with
+    # order_blocks "case", else every pair is its own block.
+    blocks = defaultdict(list)
+    for pair_id, members in by_pair.items():
+        key = members[0]["case_id"] if spec.get("order_blocks") == "case" else pair_id
+        blocks[key].append(pair_id)
+    block_keys = list(blocks)
+    rng.shuffle(block_keys)
+    ordered = []
+    for key in block_keys:
+        pair_ids = blocks[key]
+        rng.shuffle(pair_ids)
+        for pair_id in pair_ids:
+            members = by_pair[pair_id]
+            rng.shuffle(members)
+            ordered += members
+    for i, row in enumerate(ordered, 1):
         row["order"] = i
-    return rows
+    return ordered
 
 
 def main():

@@ -18,12 +18,17 @@ from games.player_roles import player_role_declaration
 from experiments.run_logger import append_run_log
 from experiments.backup import backup_logs
 from experiments.throttle import add_throttle_args, throttle_from_args, BudgetExceeded
+from experiments.models import agent_kwargs, profile_settings
 
 
 load_dotenv(".env")
 
-MODEL = "gpt-4o-mini-2024-07-18"
-TEMPERATURE = 0.7
+# Model settings come from experiment_config.json's default profile
+# (gpt-6-luna), like every other script; see experiments/models.py.
+PROFILE_NAME, PROFILE = profile_settings()
+MODEL = PROFILE["model"]
+TEMPERATURE = PROFILE["temperature"]
+AGENT_KWARGS = agent_kwargs("zh")
 COST, WTP = 40, 60
 LOG_DIR = ".logs/zh_baseline_test"
 
@@ -74,25 +79,13 @@ if __name__ == "__main__":
             if args.seller_first_offer is not None:
                 a1 = FixedFirstOfferSellerAgent(
                     agent_name=AGENT_ONE,
-                    model=MODEL,
-                    temperature=TEMPERATURE,
-                    max_tokens=600,
+                    **AGENT_KWARGS,
                     first_offer=args.seller_first_offer,
                     language="zh",
                 )
             else:
-                a1 = ChatGPTAgent(
-                    agent_name=AGENT_ONE,
-                    model=MODEL,
-                    temperature=TEMPERATURE,
-                    max_tokens=600,
-                )
-            a2 = ChatGPTAgent(
-                agent_name=AGENT_TWO,
-                model=MODEL,
-                temperature=TEMPERATURE,
-                max_tokens=600,
-            )
+                a1 = ChatGPTAgent(agent_name=AGENT_ONE, **AGENT_KWARGS)
+            a2 = ChatGPTAgent(agent_name=AGENT_TWO, **AGENT_KWARGS)
 
             seller_goal_cls = (
                 SellerGoalZH if args.prompt_version == "v1" else SellerGoalZHV2

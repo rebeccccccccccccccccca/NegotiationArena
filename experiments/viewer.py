@@ -51,10 +51,13 @@ BOOL_COLS = [
     "buyer_same_price_proposal",
     "deal",
     "breach_A",
+    "breach_B",
     "seller_below_cost",
     "buyer_no_counter",
+    "buyer_first_counter",
 ]
 NUMERIC_COLS = [
+    "fbr",
     "temperature",
     "cost",
     "wtp",
@@ -85,9 +88,19 @@ FORMAL_STAGES = {
 LEGACY_DATASET = "（Luna 之前的舊資料）"
 
 STATUS_LABELS = {"ok": "成交", "rejected": "拒絕", "max_rounds": "回合用盡"}
+# Statuses of a game that ran to a clean end; anything else is an error.
+VALID_STATUSES = list(STATUS_LABELS)
 ERROR_LABEL = "錯誤"
 STRUCTURE_LABELS = {"wide": "寬鬆", "narrow": "緊縮", "no_range": "無交集"}
 LANGUAGE_LABELS = {"en": "英文", "zh": "中文"}
+FIRST_RESPONSE_LABELS = {
+    "counter": "還價（低於開價）",
+    "same_price": "以開價提案",
+    "above_ask": "高於開價提案",
+    "accept": "接受",
+    "reject": "拒絕",
+    "other": "其他",
+}
 
 # (column, header) of the game list, in display order.
 TABLE_COLUMNS = [
@@ -102,9 +115,12 @@ TABLE_COLUMNS = [
     ("seller_first_offer", "賣方開價 O"),
     ("final_price", "成交價"),
     ("rounds", "發言次數"),
+    ("first_response_label", "買方首次回應"),
+    ("fbr", "首次還價比 FBR"),
     ("buyer_surplus_share", "買方剩餘份額"),
     ("breach_A", "失守 A（超預算成交）"),
-    ("buyer_no_counter", "成交且未還價"),
+    ("breach_B", "失守 B（無交集仍成交）"),
+    ("buyer_no_counter", "成交且全程未還價（舊定義）"),
     ("seller_prompt_version", "賣方版本"),
     ("buyer_prompt_version", "買方版本"),
     ("attempt", "第幾次嘗試"),
@@ -188,7 +204,22 @@ def load_results_df(_cache_key):
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
     df["result"] = df["status"].map(STATUS_LABELS).fillna(ERROR_LABEL)
-    df["structure_label"] = df["structure"].map(STRUCTURE_LABELS)
+    # Games without a named structure (older stages) are still split by
+    # whether a deal was possible at all, so no average mixes the two.
+    df["structure_label"] = df["structure"].map(STRUCTURE_LABELS).fillna(
+        pd.Series(
+            ["可成交（C<B）" if c < w else "無交集（C≥B）" for c, w in zip(df["cost"], df["wtp"])],
+            index=df.index,
+        ).where(df["cost"].notna() & df["wtp"].notna())
+    )
+    # Experiment B (fully scripted seller) gets its own columns: pooling it
+    # with H1's free-seller games of the same structure would mix two arms.
+    if "tactic" in df.columns:
+        scripted = df["tactic"].eq("scripted_neutral")
+        df.loc[scripted, "structure_label"] = df.loc[scripted, "structure_label"] + "・全腳本賣方"
+    df["first_response_label"] = df.get("buyer_first_response", pd.Series(pd.NA, index=df.index)).map(
+        FIRST_RESPONSE_LABELS
+    )
     df["language_label"] = df["language"].map(LANGUAGE_LABELS).fillna(df["language"])
     df["display_label"] = df["game_label"].fillna(df["game_id"])
     return df, missing
@@ -245,13 +276,6 @@ def money_token(game):
     return next(iter(buyer_start.get("_value", {})), "")
 
 
-def series_mean(series):
-    series = series.dropna()
-    if series.empty:
-        return None
-    return float(series.mean())
-
-
 def game_option_label(row):
     """'h1_001 · 案例 1 · 寬鬆 · 英文' for game pickers."""
     parts = [row["display_label"]]
@@ -275,37 +299,77 @@ def select_game(df, key):
     )
 
 
-def metrics_table(df):
-    """Rows = metrics, columns = languages."""
-    def rate(sub, mask):
-        return mask.mean() if len(sub) else None
+def count_rate(series):
+    """'3/5（60%）': games where it holds / games it is defined on."""
+    s = series.dropna()
+    return f"{int(s.sum())}/{len(s)}（{s.mean():.0%}）" if len(s) else "—"
 
-    metrics = [
-        ("局數", lambda s: len(s), "count"),
-        ("成交率", lambda s: rate(s, s["result"] == "成交"), "rate"),
-        ("拒絕比例", lambda s: rate(s, s["result"] == "拒絕"), "rate"),
-        ("回合用盡比例", lambda s: rate(s, s["result"] == "回合用盡"), "rate"),
-        ("錯誤比例", lambda s: rate(s, s["result"] == ERROR_LABEL), "rate"),
-        ("失守 A（超預算成交）比例", lambda s: series_mean(s["breach_A"]), "rate"),
-        ("成交且未還價比例", lambda s: series_mean(s["buyer_no_counter"]), "rate"),
-        ("買方剩餘份額平均（成交局）", lambda s: series_mean(s["buyer_surplus_share"]), "avg"),
-        ("買方剩餘份額平均（未成交計 0）", lambda s: series_mean(s["buyer_surplus_uncond"]), "avg"),
-        ("賣方低於成本成交比例", lambda s: series_mean(s["seller_below_cost"]), "rate"),
-    ]
+
+def mean_n(series):
+    """'0.739（n=4）': mean over the games it is defined on."""
+    s = series.dropna()
+    return f"{s.mean():.3f}（n={len(s)}）" if len(s) else "—"
+
+
+RANGE, NO_RANGE = "range", "no_range"
+
+# (label, value of a group of games, games it applies to (None = any),
+# what the denominator is). Each value's denominator is the games where
+# its column is filled in, which summarize.py restricts as described.
+METRICS = [
+    ("局數", lambda s: str(len(s)), None, "全部局"),
+    ("成交", lambda s: count_rate(s["status"].eq("ok")), None, "全部局"),
+    ("拒絕結束", lambda s: count_rate(s["status"].eq("rejected")), None, "全部局"),
+    ("回合用盡", lambda s: count_rate(s["status"].eq("max_rounds")), None, "全部局"),
+    ("錯誤", lambda s: count_rate(~s["status"].isin(VALID_STATUSES)), None, "全部局"),
+    ("首次回應即還價", lambda s: count_rate(s["buyer_first_counter"]), None, "買方有回應的有效局"),
+    ("首次還價比 FBR（平均）", lambda s: mean_n(s["fbr"]), None, "買方有出價的局"),
+    ("買方剩餘份額（成交局）", lambda s: mean_n(s["buyer_surplus_share"]), RANGE, "可成交結構的成交局"),
+    ("買方剩餘份額（未成交計 0）", lambda s: mean_n(s["buyer_surplus_uncond"]), RANGE, "可成交結構的有效局"),
+    ("失守 A：超預算成交", lambda s: count_rate(s["breach_A"]), None, "成交局"),
+    ("失守 B：無交集仍成交", lambda s: count_rate(s["breach_B"]), NO_RANGE, "無交集結構的有效局"),
+    ("賣方低於成本成交", lambda s: count_rate(s["seller_below_cost"]), None, "成交局"),
+]
+
+
+def group_kind(sub):
+    """RANGE if a deal was possible in every game (C < B), NO_RANGE if in
+    none (C > B), else None."""
+    if (sub["cost"] < sub["wtp"]).all():
+        return RANGE
+    if (sub["cost"] > sub["wtp"]).all():
+        return NO_RANGE
+    return None
+
+
+def structure_order(labels):
+    known = [l for l in STRUCTURE_LABELS.values() if l in labels]
+    return known + sorted(l for l in labels if l not in known)
+
+
+def metrics_table(df):
+    """Rows = metrics; columns = price structure × language, never pooled
+    across structures. Cells read 'k/n（%）' or 'mean（n=…）'; a metric
+    that can't apply to a structure says so."""
+    structures = structure_order(df["structure_label"].dropna().unique())
     langs = [lang for lang in ("en", "zh") if (df["language"] == lang).any()]
+    groups = [
+        (f"{structure}｜{LANGUAGE_LABELS[lang]}",
+         df[(df["structure_label"] == structure) & (df["language"] == lang)])
+        for structure in structures
+        for lang in langs
+    ]
     rows = []
-    for name, fn, kind in metrics:
+    for name, value, applies, denominator in METRICS:
         row = {"指標": name}
-        for lang in langs:
-            value = fn(df[df["language"] == lang])
-            if value is None:
-                row[LANGUAGE_LABELS[lang]] = "—"
-            elif kind == "count":
-                row[LANGUAGE_LABELS[lang]] = f"{value}"
-            elif kind == "rate":
-                row[LANGUAGE_LABELS[lang]] = f"{value:.1%}"
+        for column, sub in groups:
+            if sub.empty:
+                row[column] = "—"
+            elif applies and group_kind(sub) not in (applies, None):
+                row[column] = "不適用"
             else:
-                row[LANGUAGE_LABELS[lang]] = f"{value:.3f}"
+                row[column] = value(sub)
+        row["分母"] = denominator
         rows.append(row)
     return pd.DataFrame(rows).set_index("指標")
 
@@ -319,7 +383,7 @@ def plot_surplus_dist(df):
             plotted = True
             ax.hist(vals, bins=[i / 10 for i in range(11)], alpha=0.6,
                     label=LANGUAGE_LABELS[lang], color=color)
-    ax.set_xlabel("Buyer surplus share (deals only)")
+    ax.set_xlabel("Buyer surplus share (deals where C < B)")
     ax.set_ylabel("Games")
     if plotted:
         ax.legend()
@@ -335,7 +399,7 @@ def style_results_table(table):
 
     return (
         table.style
-        .map(style_breach, subset=["失守 A（超預算成交）"])
+        .map(style_breach, subset=["失守 A（超預算成交）", "失守 B（無交集仍成交）"])
         .map(style_result, subset=["結果"])
     )
 
@@ -361,12 +425,17 @@ def render_results_table_tab(df, stage):
 
     st.caption(f"{len(filtered)} / {len(df)} 局符合篩選條件")
 
-    left, right = st.columns([3, 2])
+    st.markdown("#### 主要指標（依價格結構 × 語言，不合併計算）")
+    st.caption(
+        "「k/n（%）」= 符合的局數／分母局數；「平均（n=…）」= 算入平均的局數。"
+        "每一列的分母見最右欄。剩餘份額只在可成交結構（C<B）計算，"
+        "失守 B 只在無交集結構（C>B）計算，其餘結構標為「不適用」。"
+    )
+    st.table(metrics_table(filtered))
+
+    left, _ = st.columns([2, 3])
     with left:
-        st.markdown("#### 主要指標")
-        st.table(metrics_table(filtered))
-    with right:
-        st.markdown("#### 買方剩餘份額分布")
+        st.markdown("#### 買方剩餘份額分布（可成交結構的成交局）")
         st.pyplot(plot_surplus_dist(filtered))
 
     st.markdown("#### 局列表（依局編號排序）")
@@ -517,22 +586,23 @@ def render_prompt_versions_tab(df, stage):
     st.markdown("#### 版本效果比較表")
     st.caption(
         "同一語言、同一價格結構下，各版本組合的表現（prompt_version：雙方相同時寫一個版本，"
-        "不同時寫「賣方/買方」，例如 v1/v3）。樣本數小時只供參考。"
+        "不同時寫「賣方/買方」，例如 v1/v3）。格式與分母同交易表格的主要指標。樣本數小時只供參考。"
     )
-    keys = ["language_label", "structure_label", "prompt_version"]
+    keys = ["structure_label", "language_label", "prompt_version"]
     comparable = df.dropna(subset=["prompt_version"])
     rows = [
         {
-            "語言": lang,
             "價格結構": structure if pd.notna(structure) else "—",
+            "語言": lang,
             "版本": pv,
             "局數": len(sub),
-            "失守 A 比例": series_mean(sub["breach_A"]),
-            "成交且未還價比例": series_mean(sub["buyer_no_counter"]),
-            "買方剩餘份額平均": series_mean(sub["buyer_surplus_share"]),
-            "平均發言次數": series_mean(sub["rounds"]),
+            "首次回應即還價": count_rate(sub["buyer_first_counter"]),
+            "首次還價比 FBR": mean_n(sub["fbr"]),
+            "買方剩餘份額（成交局）": mean_n(sub["buyer_surplus_share"]),
+            "失守 A：超預算成交": count_rate(sub["breach_A"]),
+            "失守 B：無交集仍成交": count_rate(sub["breach_B"]),
         }
-        for (lang, structure, pv), sub in comparable.groupby(keys, dropna=False)
+        for (structure, lang, pv), sub in comparable.groupby(keys, dropna=False)
     ]
     st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
 

@@ -3,8 +3,9 @@ post_fix pilot data collection: baseline_v2 (prompt v1, free seller
 opening) and rephrase_check (prompt v2 -- task04's cost-sentence
 paraphrase, free seller opening). Same model/temperature/
 initial_resources as the seller-anchor probe (see
-probe_seller_anchor.py): gpt-4o-mini-2024-07-18, temp 0.7,
-initial_resources=100, Cost40/WTP60.
+probe_seller_anchor.py): initial_resources=100, Cost40/WTP60. The
+archived runs used gpt-4o-mini; the script now uses the default model
+profile (gpt-6-luna) like every other script.
 
 Writes to .logs/baseline_v2/ and .logs/rephrase_check/ (language-split by
 game_id / prompt_version, not by subfolder -- there's only one condition
@@ -34,11 +35,15 @@ from games.player_roles import player_role_declaration
 from experiments.run_logger import append_run_log
 from experiments.backup import backup_logs
 from experiments.throttle import add_throttle_args, throttle_from_args, BudgetExceeded
+from experiments.models import agent_kwargs, profile_settings
 
 load_dotenv(".env")
 
-MODEL = "gpt-4o-mini-2024-07-18"
-TEMPERATURE = 0.7
+# Model settings come from experiment_config.json's default profile
+# (gpt-6-luna), like every other script; see experiments/models.py.
+PROFILE_NAME, PROFILE = profile_settings()
+MODEL = PROFILE["model"]
+TEMPERATURE = PROFILE["temperature"]
 INITIAL_RESOURCES = 100
 COST, WTP = 40, 60
 REPS = 6
@@ -55,23 +60,17 @@ def run_one(lang, prompt_version, log_dir):
         game_cls = BuySellGameEN
         seller_goal_cls = SellerGoal if prompt_version == "v1" else SellerGoalV2
         buyer_goal_cls = BuyerGoal
-        max_tokens = 400
     else:
         game_cls = BuySellGameZH
         seller_goal_cls = (
             SellerGoalZH if prompt_version == "v1" else SellerGoalZHV2
         )
         buyer_goal_cls = BuyerGoalZH
-        max_tokens = 600
     red_role = player_role_declaration(AGENT_ONE, lang)
     blue_role = player_role_declaration(AGENT_TWO, lang)
 
-    a1 = ChatGPTAgent(
-        agent_name=AGENT_ONE, model=MODEL, temperature=TEMPERATURE, max_tokens=max_tokens
-    )
-    a2 = ChatGPTAgent(
-        agent_name=AGENT_TWO, model=MODEL, temperature=TEMPERATURE, max_tokens=max_tokens
-    )
+    a1 = ChatGPTAgent(agent_name=AGENT_ONE, **agent_kwargs(lang))
+    a2 = ChatGPTAgent(agent_name=AGENT_TWO, **agent_kwargs(lang))
 
     game = game_cls(
         players=[a1, a2],

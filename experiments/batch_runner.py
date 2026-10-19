@@ -6,7 +6,14 @@ Resumable: a run counts as done once a game_state.json under
 .logs/<stage>/ carries its run_id with status ok, max_rounds or rejected.
 Runs that ended in api_error / parse_error are retried, up to --max-attempts in
 total; every attempt keeps its own log and its number in
-experiment.attempt, so the retry count per run is on record.
+experiment.attempt, so the retry count per run is on record. A failed
+attempt is retried right away, before the next run starts, so the two
+languages of a pair stay minutes apart even when one of them fails; only
+a run cut short by a spending cap (or a killed process) waits for the
+next invocation.
+
+A formal stage refuses to run while a case's category has no reviewed
+label in the glossary, instead of falling back to the official name.
 
 Each game's settings (case, price structure, C, O, buyer funds, context
 sentence, model, and the SHA-256 of the config, plan and candidate pool
@@ -43,6 +50,7 @@ from experiments.goal_versions import (
     check_combination,
     combined_label,
 )
+from experiments.models import agent_kwargs
 from experiments.plan import plan_path
 from experiments.run_logger import append_run_log
 from experiments.throttle import BudgetExceeded, add_throttle_args, throttle_from_args
@@ -50,7 +58,7 @@ from games.buy_sell_game.game import BuySellGame as BuySellGameEN
 from games.buy_sell_game_zh.game import BuySellGame as BuySellGameZH
 from games.player_roles import player_role_declaration
 from negotiationarena.agents.chatgpt import ChatGPTAgent
-from negotiationarena.agents.scripted_seller import FixedFirstOfferSellerAgent
+from negotiationarena.agents.scripted_seller import FixedFirstOfferSellerAgent, ScriptedSellerAgent
 from negotiationarena.constants import AGENT_ONE, AGENT_TWO, MONEY_TOKEN
 from negotiationarena.game_objects.resource import Resources
 from negotiationarena.game_objects.valuation import Valuation
@@ -120,27 +128,43 @@ def read_plan(stage):
         return list(csv.DictReader(f)), path
 
 
+def build_seller(config, row, settings, kwargs):
+    """baseline: the model plays the seller after the scripted opening
+    (H1). scripted_neutral: every seller turn follows the rules in
+    config["scripted_seller"], no API call (experiment B)."""
+    lang = row["language"]
+    if row["tactic"] == "baseline":
+        return FixedFirstOfferSellerAgent(
+            agent_name=AGENT_ONE,
+            first_offer=settings["seller_first_offer"],
+            language=lang,
+            **kwargs,
+        )
+    if row["tactic"] == "scripted_neutral":
+        script = config["scripted_seller"]
+        return ScriptedSellerAgent(
+            agent_name=AGENT_ONE,
+            first_offer=settings["seller_first_offer"],
+            cost=settings["cost"],
+            templates=script["templates"],
+            language=lang,
+            max_proposals=config["iterations"] // 2 - 1,
+            concession_beta=script["concession_beta"],
+            rounding=script["rounding"],
+            buyer_funds=settings["buyer_funds"],
+            script_version=script["version"],
+        )
+    raise NotImplementedError(f"tactic {row['tactic']} is not implemented yet")
+
+
 def build_game(config, profile_name, row, settings):
     lang = row["language"]
-    if row["tactic"] != "baseline":
-        raise NotImplementedError(f"tactic {row['tactic']} is not implemented yet")
     seller_version, buyer_version = row_versions(row)
     seller_goal_cls = SELLER_GOALS[(lang, seller_version)]
     buyer_goal_cls = BUYER_GOALS[(lang, buyer_version)]
-    profile = config["model_profiles"][profile_name]
-    agent_kwargs = dict(
-        model=profile["model"],
-        temperature=profile["temperature"],
-        max_tokens=profile["max_tokens"][lang],
-        reasoning_effort=profile["reasoning_effort"],
-    )
-    seller = FixedFirstOfferSellerAgent(
-        agent_name=AGENT_ONE,
-        first_offer=settings["seller_first_offer"],
-        language=lang,
-        **agent_kwargs,
-    )
-    buyer = ChatGPTAgent(agent_name=AGENT_TWO, **agent_kwargs)
+    kwargs = agent_kwargs(lang, config, profile_name)
+    seller = build_seller(config, row, settings, kwargs)
+    buyer = ChatGPTAgent(agent_name=AGENT_TWO, **kwargs)
     # .logs/<stage>/<game_label>/<epoch_ms>/, e.g. .logs/h1/h1_001/...: a
     # retry lands next to the earlier attempt. Plans from before game
     # labels keep the older <lang>_<tactic>_<profile> folders.
@@ -210,8 +234,9 @@ def main():
     # Formal stages only run from a clean tree, so the commit each game
     # records is the code that ran; pilots and smoke tests may run from a
     # dirty tree but record which files differed.
+    formal = config["stages"].get(args.stage, {}).get("formal")
     changes = uncommitted_changes()
-    if changes and config["stages"].get(args.stage, {}).get("formal") and not args.dry_run:
+    if changes and formal and not args.dry_run:
         raise SystemExit(
             f"{args.stage} is a formal stage; commit these first, so the commit "
             "recorded with each game is the code that ran:\n  " + "\n  ".join(changes)
@@ -236,6 +261,13 @@ def main():
         - set(glossary)
     )
     if official:
+        # The official names are unreviewed text; a formal stage must not
+        # show them to the model. A dry run still prints them for review.
+        if formal and not args.dry_run:
+            raise SystemExit(
+                f"{args.stage} is a formal stage; these category codes have no "
+                f"reviewed label in {config['category_glossary']}: {official}"
+            )
         print(f"NOTE: no glossary label for codes {official}; using official category names")
 
     if args.dry_run:
@@ -252,61 +284,82 @@ def main():
 
     throttle = throttle_from_args(args)
     games = []
+    stopped = False
     for row in todo:
-        try:
-            throttle.check_before_game()
-        except BudgetExceeded as e:
-            print(f"Stopping early: {e}")
-            break
-        throttle.wait_for_interval()
-
+        label = row.get("game_label") or row["run_id"]
         settings = negotiation_settings(config, cases[row["case_id"]], row["structure"], row["language"], glossary)
-        game = build_game(config, profile_name, row, settings)
         seller_version, buyer_version = row_versions(row)
-        # Serialized into game_state.json with the rest of the game.
-        game.experiment = {
-            "run_id": row["run_id"],
-            "stage": row["stage"],
-            "order": int(row["order"]),
-            **(
-                {
-                    "game_label": row["game_label"],
-                    "game_no": int(row["game_no"]),
-                    "case_no": int(row["case_no"]),
-                }
-                if row.get("game_label")
-                else {}
-            ),
-            "pair_id": row["pair_id"],
-            "tactic": row["tactic"],
-            "seller_prompt_version": seller_version,
-            "buyer_prompt_version": buyer_version,
-            "prompt_version": game.prompt_version,
-            "language": row["language"],
-            "rep": int(row["rep"]),
-            "attempt": len(attempts[row["run_id"]]) + 1,
-            "profile": profile_name,
-            "model": profile["model"],
-            "reasoning_effort": profile["reasoning_effort"],
-            "temperature": profile["temperature"],
-            "iterations": config["iterations"],
-            "uncommitted_changes": changes,
-            **settings,
-            **hashes,
-        }
-        print(
-            f"=== [{row['order']}/{len(plan)}] {row.get('game_label') or row['run_id']} "
-            f"B={settings['wtp']} C={settings['cost']} O={settings['seller_first_offer']} "
-            f"attempt {game.experiment['attempt']} ==="
-        )
-        try:
-            game.run()
-        except Exception:
-            # run() has already written game_state.json with the error status.
-            traceback.print_exc()
-        attempts[row["run_id"]].append(game.run_metadata.get("status"))
-        games.append(game)
-        throttle.record_game(game, profile["model"])
+        # Retry a failed attempt right away instead of at the next
+        # invocation, so a pair's two games stay close in time.
+        while True:
+            try:
+                throttle.check_before_game()
+            except BudgetExceeded as e:
+                print(f"Stopping early: {e}")
+                stopped = True
+                break
+            throttle.wait_for_interval()
+
+            game = build_game(config, profile_name, row, settings)
+            # Serialized into game_state.json with the rest of the game.
+            game.experiment = {
+                "run_id": row["run_id"],
+                "stage": row["stage"],
+                "order": int(row["order"]),
+                **(
+                    {
+                        "game_label": row["game_label"],
+                        "game_no": int(row["game_no"]),
+                        "case_no": int(row["case_no"]),
+                    }
+                    if row.get("game_label")
+                    else {}
+                ),
+                "pair_id": row["pair_id"],
+                "tactic": row["tactic"],
+                "seller_prompt_version": seller_version,
+                "buyer_prompt_version": buyer_version,
+                "prompt_version": game.prompt_version,
+                "language": row["language"],
+                "rep": int(row["rep"]),
+                "attempt": len(attempts[row["run_id"]]) + 1,
+                "profile": profile_name,
+                "model": profile["model"],
+                "reasoning_effort": profile["reasoning_effort"],
+                "temperature": profile["temperature"],
+                "iterations": config["iterations"],
+                "uncommitted_changes": changes,
+                # The scripted seller's rules and wording, as run.
+                **(
+                    {"scripted_seller": config["scripted_seller"]}
+                    if row["tactic"] == "scripted_neutral"
+                    else {}
+                ),
+                **settings,
+                **hashes,
+            }
+            print(
+                f"=== [{row['order']}/{len(plan)}] {label} "
+                f"B={settings['wtp']} C={settings['cost']} O={settings['seller_first_offer']} "
+                f"attempt {game.experiment['attempt']} ==="
+            )
+            try:
+                game.run()
+            except Exception:
+                # run() has already written game_state.json with the error status.
+                traceback.print_exc()
+            status = game.run_metadata.get("status")
+            attempts[row["run_id"]].append(status)
+            games.append(game)
+            throttle.record_game(game, profile["model"])
+            if status in DONE_STATUSES:
+                break
+            if len(attempts[row["run_id"]]) >= args.max_attempts:
+                print(f"Giving up on {label}: {args.max_attempts} attempts ended in errors")
+                break
+            print(f"{label} ended in {status}; retrying it now")
+        if stopped:
+            break
 
     if games:
         append_run_log(

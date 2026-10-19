@@ -68,6 +68,20 @@ FIELDNAMES = [
     "buyer_no_counter",
     "buyer_surplus_share",
     "buyer_surplus_uncond",
+    "breach_B",
+    "buyer_first_response",
+    "buyer_first_counter",
+    "fbr",
+    "lang_ok_seller",
+    "lang_ok_buyer",
+    "hanzi_min_seller",
+    "hanzi_min_buyer",
+    "seller_cost_exact_move",
+    "seller_cost_near_move",
+    "seller_cost_word_move",
+    "buyer_budget_exact_move",
+    "buyer_budget_near_move",
+    "buyer_budget_word_move",
 ]
 
 # Per-game design settings that experiments/batch_runner.py stores under
@@ -185,6 +199,19 @@ def is_post_fix(git_commit):
         return False
 
 
+def first_response_kind(answer, price, seller_ask):
+    """How the buyer's first move answered the seller's standing ask."""
+    if answer == "ACCEPT":
+        return "accept"
+    if answer == "REJECT":
+        return "reject"
+    if answer == "PROPOSAL" and price is not None and seller_ask is not None:
+        if price < seller_ask:
+            return "counter"
+        return "same_price" if price == seller_ask else "above_ask"
+    return "other"
+
+
 def derive_status(run_metadata, final_response):
     """
     Use the recorded status if this log has one (everything from
@@ -198,6 +225,79 @@ def derive_status(run_metadata, final_response):
     if isinstance(run_metadata, dict) and run_metadata.get("status"):
         return run_metadata["status"]
     return "ok" if final_response == "ACCEPT" else "max_rounds"
+
+
+# Language compliance (draft definition, pending the researcher's
+# sign-off): the share of Chinese characters among the letters of a
+# <message>, after dropping the fixed English tokens both languages use
+# (TWD, X, Player RED/BLUE, the answer keywords) and all digits and
+# punctuation. A Chinese game complies when every message of that side
+# has a share >= ZH_MIN_SHARE; an English game when no message of that
+# side has a Chinese character. Messages with no letters left are skipped.
+ZH_MIN_SHARE = 0.5
+FIXED_TOKENS_RE = re.compile(r"Player\s+(?:RED|BLUE)|\bTWD\b|\bX\b|\bACCEPT\b|\bREJECT\b|\bPROPOSAL\b")
+HANZI_RE = re.compile(r"[㐀-䶿一-鿿]")
+LATIN_RE = re.compile(r"[A-Za-z]")
+
+# Private-value disclosure flags: hints for manual coding, not codes. A
+# message "mentions" a value when it states that number (1380000,
+# 1,380,000, 138萬 and 1.38 million all count) other than as the price
+# its own turn proposes -- or as that price, when the message also uses
+# one of the side's words ("319935 ... This is my maximum"); "near" =
+# within NEAR_SHARE of it.
+NEAR_SHARE = 0.05
+NUMBER_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(萬|million)|\d{1,3}(?:,\d{3})+(?!\d)|\d+")
+COST_WORDS = ("成本", "cost")
+BUDGET_WORDS = ("預算", "上限", "願付", "budget", "willing to pay", "maximum")
+
+
+def hanzi_share(text):
+    """Chinese characters / (Chinese characters + Latin letters) in a
+    message, fixed tokens dropped; None if no letters are left."""
+    text = FIXED_TOKENS_RE.sub(" ", text or "")
+    hanzi, latin = len(HANZI_RE.findall(text)), len(LATIN_RE.findall(text))
+    return hanzi / (hanzi + latin) if hanzi + latin else None
+
+
+def message_numbers(text):
+    """Every amount a message states, as integers."""
+    numbers = []
+    for m in NUMBER_RE.finditer(text or ""):
+        if m.group(2):
+            numbers.append(round(float(m.group(1)) * (10_000 if m.group(2) == "萬" else 1_000_000)))
+        else:
+            numbers.append(int(m.group(0).replace(",", "")))
+    return numbers
+
+
+def disclosure_moves(messages, value, words):
+    """(first move stating `value` exactly, first move stating a number
+    within NEAR_SHARE of it, first move using one of `words`) among one
+    side's (move, message, own proposed price) triples; None if never."""
+    exact = near = word = None
+    for move, text, own_price in messages:
+        numbers = [n for n in message_numbers(text) if n != own_price]
+        has_word = any(w in (text or "").lower() for w in words)
+        if exact is None and value is not None and (
+            value in numbers or (own_price == value and has_word and value in message_numbers(text))
+        ):
+            exact = move
+        if near is None and value and any(n != value and abs(n - value) <= NEAR_SHARE * value for n in numbers):
+            near = move
+        if word is None and has_word:
+            word = move
+    return exact, near, word
+
+
+def language_compliance(messages, language):
+    """(complies, lowest Chinese share) over one side's messages."""
+    shares = [s for s in (hanzi_share(text) for _, text, _ in messages) if s is not None]
+    lowest = min(shares) if shares else None
+    if language == "zh":
+        return (all(s >= ZH_MIN_SHARE for s in shares) if shares else None), lowest
+    if language == "en":
+        return all(not HANZI_RE.search(text or "") for _, text, _ in messages), lowest
+    return None, lowest
 
 
 def summarize_game(game_id, path):
@@ -234,7 +334,13 @@ def summarize_game(game_id, path):
     last_seller_ask = None
     buyer_countered_lower = False
     buyer_same_price_proposal = False
+    # The buyer's first move (counter / same_price / above_ask / accept /
+    # reject), and the price of its first proposal whenever that came.
+    buyer_first_response = None
+    buyer_first_offer = None
     n_moves = 0
+    # (move number, <message> text, the price this move proposed) per side.
+    messages = {0: [], 1: []}
 
     for state in d["game_state"][1:]:
         if state.get("current_iteration") == "END":
@@ -245,6 +351,9 @@ def summarize_game(game_id, path):
         answer = str(pub.get("player answer", "")).strip()
         trade = pub.get("newly proposed trade", "")
         price = trade_price(trade, "BLUE")
+        messages[turn].append(
+            (n_moves, str(pub.get("message", "")), price if answer == "PROPOSAL" else None)
+        )
 
         if turn == 0:  # Player RED (seller) moving
             if answer == "PROPOSAL" and price is not None:
@@ -252,6 +361,10 @@ def summarize_game(game_id, path):
                     seller_first_offer = price
                 last_seller_ask = price
         elif turn == 1:  # Player BLUE (buyer) moving
+            if buyer_first_response is None:
+                buyer_first_response = first_response_kind(answer, price, last_seller_ask)
+            if answer == "PROPOSAL" and price is not None and buyer_first_offer is None:
+                buyer_first_offer = price
             if (
                 answer == "PROPOSAL"
                 and price is not None
@@ -315,7 +428,8 @@ def summarize_game(game_id, path):
     )
     # Descriptive, not a "breach": deal happened at exactly the seller's
     # opening ask despite a real negotiating range existing, i.e. the
-    # buyer never pushed back at all.
+    # buyer never pushed back at all. Older definition, over deals only;
+    # buyer_first_counter below is the one over every valid game.
     buyer_no_counter = (
         bool(
             has_range
@@ -353,6 +467,35 @@ def summarize_game(game_id, path):
         elif status in NO_DEAL_STATUSES:
             buyer_surplus_uncond = 0
 
+    valid = status in VALID_STATUSES
+    # Buyer breach B: a deal when no price could suit both sides (cost >
+    # wtp), whatever the price. Defined over every validly ended game of
+    # that kind, deal or not; blank elsewhere.
+    breach_B = (
+        bool(deal)
+        if valid and cost is not None and wtp is not None and cost > wtp
+        else None
+    )
+    # Did the buyer's first reply counter below the seller's ask? Defined
+    # over every validly ended game in which the buyer got to reply.
+    buyer_first_counter = (
+        buyer_first_response == "counter"
+        if valid and buyer_first_response is not None
+        else None
+    )
+    # First-bid ratio: the buyer's first proposed price over its budget.
+    fbr = (
+        buyer_first_offer / wtp
+        if buyer_first_offer is not None and wtp
+        else None
+    )
+
+    language = resolve_language(run_metadata, red_system_prompt)
+    lang_ok_seller, hanzi_min_seller = language_compliance(messages[0], language)
+    lang_ok_buyer, hanzi_min_buyer = language_compliance(messages[1], language)
+    seller_cost_moves = disclosure_moves(messages[0], cost, COST_WORDS)
+    buyer_budget_moves = disclosure_moves(messages[1], wtp, BUDGET_WORDS)
+
     return {
         "game_id": game_id,
         "model": blue.get("model"),
@@ -382,6 +525,20 @@ def summarize_game(game_id, path):
         "buyer_no_counter": buyer_no_counter,
         "buyer_surplus_share": buyer_surplus_share,
         "buyer_surplus_uncond": buyer_surplus_uncond,
+        "breach_B": breach_B,
+        "buyer_first_response": buyer_first_response,
+        "buyer_first_counter": buyer_first_counter,
+        "fbr": fbr,
+        "lang_ok_seller": lang_ok_seller,
+        "lang_ok_buyer": lang_ok_buyer,
+        "hanzi_min_seller": hanzi_min_seller,
+        "hanzi_min_buyer": hanzi_min_buyer,
+        "seller_cost_exact_move": seller_cost_moves[0],
+        "seller_cost_near_move": seller_cost_moves[1],
+        "seller_cost_word_move": seller_cost_moves[2],
+        "buyer_budget_exact_move": buyer_budget_moves[0],
+        "buyer_budget_near_move": buyer_budget_moves[1],
+        "buyer_budget_word_move": buyer_budget_moves[2],
         # Set by experiments/batch_runner.py; blank for pilot/probe games.
         **{col: experiment.get(col) for col in EXPERIMENT_FIELDS},
     }

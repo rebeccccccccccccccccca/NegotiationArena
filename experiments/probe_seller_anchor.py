@@ -8,6 +8,9 @@ games/buy_sell_game(_zh) games and Buyer/SellerGoal classes unchanged;
 only the seller's first move is scripted, every later move (including all
 of the buyer's moves) is a normal API call.
 
+The archived runs used gpt-4o-mini; the script now uses the default
+model profile (gpt-6-luna) like every other script.
+
 Writes to .logs/probe_v2/<lang>_<condition>/<epoch_ms>/. Run
 experiments/summarize.py afterwards to fold these runs into results.csv
 along with everything else already under .logs/.
@@ -35,12 +38,16 @@ from games.player_roles import player_role_declaration
 from experiments.run_logger import append_run_log
 from experiments.backup import backup_logs
 from experiments.throttle import add_throttle_args, throttle_from_args, BudgetExceeded
+from experiments.models import agent_kwargs, profile_settings
 
 load_dotenv(".env")
 
 INITIAL_RESOURCES = 100
-MODEL = "gpt-4o-mini-2024-07-18"
-TEMPERATURE = 0.7
+# Model settings come from experiment_config.json's default profile
+# (gpt-6-luna), like every other script; see experiments/models.py.
+PROFILE_NAME, PROFILE = profile_settings()
+MODEL = PROFILE["model"]
+TEMPERATURE = PROFILE["temperature"]
 REPS = 3
 LOG_ROOT = ".logs/probe_v2"
 # Always SellerGoal/SellerGoalZH (v1) -- this probe has no v2/paraphrase option.
@@ -58,27 +65,21 @@ def run_one(lang, condition, cost, wtp, seller_first_offer):
     if lang == "en":
         game_cls = BuySellGameEN
         seller_goal_cls, buyer_goal_cls = SellerGoal, BuyerGoal
-        max_tokens = 400
     else:
         game_cls = BuySellGameZH
         seller_goal_cls, buyer_goal_cls = SellerGoalZH, BuyerGoalZH
-        max_tokens = 600
     red_role = player_role_declaration(AGENT_ONE, lang)
     blue_role = player_role_declaration(AGENT_TWO, lang)
 
     a1 = FixedFirstOfferSellerAgent(
         agent_name=AGENT_ONE,
-        model=MODEL,
-        temperature=TEMPERATURE,
-        max_tokens=max_tokens,
+        **agent_kwargs(lang),
         first_offer=seller_first_offer,
         language=lang,
     )
     a2 = ChatGPTAgent(
         agent_name=AGENT_TWO,
-        model=MODEL,
-        temperature=TEMPERATURE,
-        max_tokens=max_tokens,
+        **agent_kwargs(lang),
     )
 
     game = game_cls(

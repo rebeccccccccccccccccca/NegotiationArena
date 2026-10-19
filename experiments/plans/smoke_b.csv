@@ -1,0 +1,3 @@
+order,game_label,game_no,run_id,stage,case_no,case_id,pool_rank,role,structure,tactic,seller_prompt_version,buyer_prompt_version,language,rep,pair_id
+1,smoke_b_002,2,smoke_b:BDM-1-71174773:narrow:scripted_neutral:sv1-bv1:r1:zh,smoke_b,1,BDM-1-71174773,121,pool,narrow,scripted_neutral,v1,v1,zh,1,BDM-1-71174773:narrow:scripted_neutral:sv1-bv1:r1
+2,smoke_b_001,1,smoke_b:BDM-1-71174773:narrow:scripted_neutral:sv1-bv1:r1:en,smoke_b,1,BDM-1-71174773,121,pool,narrow,scripted_neutral,v1,v1,en,1,BDM-1-71174773:narrow:scripted_neutral:sv1-bv1:r1

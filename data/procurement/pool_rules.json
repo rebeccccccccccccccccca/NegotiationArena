@@ -1,12 +1,15 @@
 {
-  "_comment": "Scope rules and role split for experiments/procurement/build_pool.py. category_whitelist: 標的分類 code prefixes as strings (\"452\" = that code only, \"45\" = every code under 45); empty = all goods categories. amount_tiers: allowed 採購金額級距 values, e.g. \"未達公告金額\"; empty = any. budget_min / budget_max: NT$ bounds on 預算金額, null = open. exclude_case_ids: cases already played in exploratory pilots; they are never given a role, so no formal or calibration case has been seen before. Freezing: set frozen to true, run build_pool, then fetch_awards manifest; from then on build_pool refuses to run if this file differs from the hash in MANIFEST.json.",
+  "_comment": "Scope rules and role split for experiments/procurement/build_pool.py. category_whitelist: 標的分類 code prefixes as strings (\"452\" = that code only, \"45\" = every code under 45); empty = all goods categories. amount_tiers: allowed 採購金額級距 values; empty = any. budget_min / budget_max: inclusive NT$ bounds on 預算金額, null = open (150,000 = central-government small-purchase ceiling, 1,500,000 = announcement threshold since 2023-01-01; whether to include the endpoints is pending). coding_sheet: the manual coding sheet (export_coding_sheet.py, codes in coding_manual.md); include = N excludes a case; require_coding: refuse to build while an in-scope case is uncoded (set true when freezing). assignment: \"blocked\" = implicit stratification by 2-digit category group and budget (see build_pool.py), \"sequential\" = pool_rank order. roles: the wording-robustness block reuses the stage1_2 cases, so it has no role of its own. exclude_case_ids: cases already played in exploratory pilots or smoke tests; they are never given a role. Freezing: set frozen to true, run build_pool, then fetch_awards manifest; from then on build_pool refuses to run if this file differs from the hash in MANIFEST.json.",
   "frozen": false,
   "seed": 20261016,
-  "roles": "calibration:10,stage1_2:40,stage3:40,wording:20,reserve:10",
+  "roles": "calibration:20,stage1_2:40,stage3:40,reserve:10",
+  "assignment": "blocked",
   "category_whitelist": [],
   "amount_tiers": [],
-  "budget_min": null,
-  "budget_max": null,
+  "budget_min": 150000,
+  "budget_max": 1500000,
+  "coding_sheet": "data/procurement/case_coding.csv",
+  "require_coding": false,
   "exclude_case_ids": [
     "BDM-1-70986067",
     "BDM-1-71016628",
@@ -14,6 +17,7 @@
     "BDM-1-71174576",
     "BDM-1-71209288",
     "aaa-71080476",
-    "aaa-71166153"
+    "aaa-71166153",
+    "BDM-1-71174773"
   ]
 }

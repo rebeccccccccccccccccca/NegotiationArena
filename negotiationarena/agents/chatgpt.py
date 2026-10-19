@@ -10,6 +10,7 @@ import time
 from negotiationarena.constants import AGENT_TWO, AGENT_ONE
 from negotiationarena.agents.agent_behaviours import SelfCheckingAgent
 from copy import deepcopy
+from datetime import datetime
 
 # Transient errors worth retrying (rate limits, connection hiccups, 5xx).
 # Anything else (bad request, auth, content filter, ...) fails immediately --
@@ -24,19 +25,29 @@ MAX_RETRIES = 3
 RETRY_BACKOFF_SECONDS = 1
 
 
+def now_iso():
+    """Local time with its UTC offset, to the millisecond."""
+    return datetime.now().astimezone().isoformat(timespec="milliseconds")
+
+
 class ChatGPTAgent(Agent):
     def __init__(
         self,
         agent_name: str,
-        model="gpt-4-1106-preview",
-        temperature=0.7,
-        max_tokens=400,
+        model="gpt-6-luna",
+        temperature=None,
+        max_tokens=8000,
         seed=None,
-        reasoning_effort=None,
+        reasoning_effort="medium",
     ):
         """
-        reasoning_effort: None for non-reasoning models (gpt-4o-mini). For
-        a reasoning model (e.g. gpt-6-luna) set it to one of the values the
+        The defaults are the project's model, gpt-6-luna with medium
+        reasoning (experiment_config.json's luna_medium profile), so an
+        agent built without arguments never calls an older model; scripts
+        pass experiments.models.agent_kwargs() explicitly anyway.
+
+        reasoning_effort: None only for a non-reasoning model. For a
+        reasoning model (gpt-6-luna) set it to one of the values the
         model accepts; requests then carry reasoning_effort and use
         max_tokens as max_completion_tokens, which also has to cover the
         hidden reasoning tokens. With reasoning on, such models only
@@ -105,6 +116,7 @@ class ChatGPTAgent(Agent):
         return params
 
     def chat(self):
+        requested_at = now_iso()
         for attempt in range(MAX_RETRIES + 1):
             try:
                 chat = self.client.chat.completions.create(**self.request_params())
@@ -119,6 +131,11 @@ class ChatGPTAgent(Agent):
         details = getattr(chat.usage, "completion_tokens_details", None)
         self.usage_log.append(
             {
+                # When this call was first sent (before any retry) and when
+                # its answer arrived: the model behind an undated name can
+                # change during data collection, so each answer is dated.
+                "requested_at": requested_at,
+                "responded_at": now_iso(),
                 "served_model": chat.model,
                 "prompt_tokens": chat.usage.prompt_tokens,
                 # Includes reasoning_tokens for a reasoning model.
