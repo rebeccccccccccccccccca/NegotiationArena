@@ -4,7 +4,7 @@ budget lies in the planned range, with keyword flags and a suggested
 exclusion code as hints for the coder (nothing is excluded here). The
 codes are defined in data/procurement/coding_manual.md.
 
-The coder fills `include` (Y/N), `reason_code` (E1-E8 when N) and
+The coder fills `include` (Y/N), `reason_code` (E1-E9 when N) and
 `coder_note`. The sheet is never overwritten without --force, so manual
 coding can't be lost by re-running this.
 
