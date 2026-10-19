@@ -83,9 +83,10 @@ FORMAL_STAGES = {
     "h3": "H3 正式實驗",
     "wording": "措辭穩健性",
 }
-# Games with no stage: everything run before the batch runner (the
-# gpt-4o-mini pilots). They only show up if moved back from .logs_archive/.
-LEGACY_DATASET = "（Luna 之前的舊資料）"
+# Games with no stage: anything not run by the batch runner, i.e. the
+# gpt-4o-mini pilots and the runner/ verification games. Both are moved to
+# .logs_archive/, so this only shows up for a game not yet archived.
+LEGACY_DATASET = "（非批次執行的單局）"
 
 STATUS_LABELS = {"ok": "成交", "rejected": "拒絕", "max_rounds": "回合用盡"}
 # Statuses of a game that ran to a clean end; anything else is an error.

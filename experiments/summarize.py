@@ -609,6 +609,12 @@ def main():
             writer.writeheader()
             writer.writerows(stage_rows)
         print(f"Wrote {len(stage_rows)} rows to {path}")
+    # A stage whose games were all moved to .logs_archive/ keeps no table:
+    # these files are derived from .logs/ and would otherwise go stale.
+    for path in glob.glob(os.path.join(STAGE_CSV_DIR, "*.csv")):
+        if os.path.splitext(os.path.basename(path))[0] not in by_stage:
+            os.remove(path)
+            print(f"Removed {path} (no games left in .logs/)")
 
     by_lang = defaultdict(lambda: {"n": 0, "failed": 0})
     for row in rows:
