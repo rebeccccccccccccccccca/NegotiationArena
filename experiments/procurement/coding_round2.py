@@ -7,7 +7,8 @@ step 2).
           notice adds beyond the coding sheet (notice URL, every awarded
           item, country of origin, winning vendor and its trade, contract
           period, unit-price award, additional notes). The reviewer fills
-          include_r2, reason_code_r2 and r2_evidence there.
+          the protocol and source-audit fields as well as include_r2,
+          reason_code_r2 and r2_evidence there.
   append  adds to an existing coding_round2.csv the cases a fresh export
           would list but the sheet lacks (e.g. a group added later), at the
           end; rows already there, and their review input, are kept as they
@@ -70,11 +71,19 @@ DETAIL_COLUMNS = [
     "winner", "winner_trade", "contract_period", "additional_note",
 ]
 REVIEW_COLUMNS = ["include_r2", "reason_code_r2", "r2_evidence"]
+CURRENT_PROTOCOL = "R2-20261021"
+# The corresponding manual is a draft. Enable only after researcher approval.
+PROTOCOL_FROZEN = False
+AUDIT_COLUMNS = [
+    "r2_protocol", "r2_sources_checked", "r2_award_method",
+    "r2_quantity_binding", "r2_calloff", "r2_settlement",
+    "r2_budget_scope", "r2_item_scope", "r2_unresolved",
+]
 # pilot_excluded = Y: already played in a pilot, so build_pool never gives
 # it a role whatever its code; reviewing it changes nothing. contract_days
 # was added after the first sheet went out, so it comes last and existing
 # sheets keep their column order.
-FIELDS = ["review_group", "pilot_excluded"] + CODING_COLUMNS + DETAIL_COLUMNS + REVIEW_COLUMNS + ["contract_days"]
+FIELDS = ["review_group", "pilot_excluded"] + CODING_COLUMNS + DETAIL_COLUMNS + REVIEW_COLUMNS + ["contract_days"] + AUDIT_COLUMNS
 
 
 def group_of(row, details):
@@ -192,7 +201,7 @@ def sheet_rows():
             "pilot_excluded": "Y" if r["case_id"] in excluded else "",
             **{k: r[k] for k in CODING_COLUMNS},
             **notices[r["case_id"]],
-            **{k: "" for k in REVIEW_COLUMNS},
+            **{k: "" for k in REVIEW_COLUMNS + AUDIT_COLUMNS},
         }
         for g, r in picked
     ]
@@ -238,10 +247,18 @@ def check_review(row):
         problems.append("reason_code_r2 must be empty when Y")
     if not evidence:
         problems.append("r2_evidence is empty (record what was checked)")
+    if row.get("r2_protocol", "").strip() != CURRENT_PROTOCOL:
+        problems.append(f"r2_protocol must be {CURRENT_PROTOCOL} after re-review")
+    if not row.get("r2_sources_checked", "").strip():
+        problems.append("r2_sources_checked is empty")
+    if inc == "N" and code == "E10" and not row.get("r2_unresolved", "").strip():
+        problems.append("N/E10 requires r2_unresolved (which necessary evidence is missing)")
     return problems
 
 
 def merge(args):
+    if args.write and not PROTOCOL_FROZEN:
+        raise SystemExit("round-2 protocol is still a draft; researcher approval and manual freeze required before --write")
     sheet = read_csv(SHEET_PATH)
     coding = read_csv(CODING_PATH)
     fields = list(coding[0].keys())
