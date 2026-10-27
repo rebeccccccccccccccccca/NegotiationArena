@@ -567,7 +567,10 @@ def summarize_game(game_id, path):
 
 # The order plan.py loops in (experiment_config.json lists structures and
 # languages this way), for numbering stages planned before game labels.
-STRUCTURE_ORDER = {"wide": 0, "narrow": 1, "no_range": 2}
+STRUCTURE_ORDER = {
+    "under_budget": 0, "over_budget": 1, "no_overlap": 2,
+    "wide": 0, "narrow": 1, "no_range": 2,
+}
 LANGUAGE_ORDER = {"en": 0, "zh": 1}
 
 

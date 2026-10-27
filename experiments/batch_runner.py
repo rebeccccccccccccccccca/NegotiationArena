@@ -43,6 +43,7 @@ from experiments.cases import (
     load_config,
     load_glossary,
     negotiation_settings,
+    t1_problems,
 )
 from experiments.goal_versions import (
     BUYER_GOALS,
@@ -205,7 +206,13 @@ def main():
         help="print the settings and both system prompts of the next run "
         "in each language, without calling the API",
     )
-    parser.add_argument("--max-attempts", type=int, default=3)
+    parser.add_argument(
+        "--max-attempts",
+        type=int,
+        default=None,
+        help="attempts per game, first run included (default: the stage's "
+        "max_attempts in experiment_config.json, else 3)",
+    )
     parser.add_argument(
         "--profile",
         help="model profile from experiment_config.json (default: its "
@@ -215,11 +222,26 @@ def main():
     args = parser.parse_args()
 
     config = load_config()
+    if args.max_attempts is None:
+        args.max_attempts = config["stages"].get(args.stage, {}).get("max_attempts", 3)
     profile_name = args.profile or config["model_profile"]
     profile = config["model_profiles"][profile_name]
     glossary = load_glossary(config)
     plan, path = read_plan(args.stage)
     cases = {c["case_id"]: c for c in load_cases(config, {r["role"] for r in plan})}
+
+    # T1 again, on the config as it is now: the plan may have been built
+    # before a price ratio changed.
+    structures_by_case = defaultdict(set)
+    for row in plan:
+        structures_by_case[row["case_id"]].add(row["structure"])
+    t1 = [
+        f"  {case_id}: {p}"
+        for case_id, structures in sorted(structures_by_case.items())
+        for p in t1_problems(config, cases[case_id], sorted(structures))
+    ]
+    if t1:
+        raise SystemExit(f"{args.stage}: T1 fails for these cases:\n" + "\n".join(t1))
     hashes = {
         "config_sha256": file_sha256(CONFIG_PATH),
         "plan_sha256": file_sha256(path),

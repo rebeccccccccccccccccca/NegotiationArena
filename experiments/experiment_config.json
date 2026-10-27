@@ -1,5 +1,5 @@
 {
-  "_comment": "Settings for experiments/batch_runner.py and experiments/plan.py. Prices are integers in TWD (MONEY_TOKEN) derived from each case's budget B (預算金額): cost C = round(B * cost_ratio), seller opening offer O = round(B * offer_ratio), buyer funds = round(B * buyer_funds_multiple). price_structures are PLACEHOLDERS (pilot ratios: wide 40/60/50, narrow 40/45/50, no_range 60/40/65) until agreed with the advisor. case_context templates are DRAFTS; the wording is the researcher's to decide.",
+  "_comment": "Settings for experiments/batch_runner.py and experiments/plan.py. Prices are integers in TWD (MONEY_TOKEN) derived from each case's budget B (預算金額): cost C = round(B * cost_ratio), seller opening offer O = round(B * offer_ratio), buyer funds = round(B * buyer_funds_multiple). price_structures: under_budget / over_budget / no_overlap are H1's starting values (h1_decision_record.md A11; fixed after the calibration pilot), and `kind` is what the T1 check (experiments/cases.py) holds each to; wide / narrow / no_range are the pilot ratios (40/60/50, 40/45/50, 60/40/65), kept unchanged for the pilot stages. case_context templates are DRAFTS; the wording is the researcher's to decide.",
   "_comment_models": "Every API call uses gpt-6-luna: model_profile (luna_medium) is the default for every script (experiments/models.py); batch_runner --profile can pick luna_high. The gpt-4o-mini profile used before Luna has been removed so no script can call it; its runs are archived in .logs_archive/. Both players use the same profile. Reasoning profiles: temperature null = API default (1), the only value gpt-6-luna accepts with reasoning on; max_tokens is sent as max_completion_tokens and must also cover the hidden reasoning tokens (hitting it fails the request instead of truncating). gpt-6-luna has no dated snapshot, so served model names are recorded per call.",
   "model_profile": "luna_medium",
   "model_profiles": {
@@ -21,9 +21,12 @@
   "offer_ceiling_ratio": 1.9,
   "offer_warning_ratio": 1.8,
   "price_structures": {
-    "wide": {"cost_ratio": 0.6667, "offer_ratio": 0.8333, "status": "placeholder: pilot 40/60/50"},
-    "narrow": {"cost_ratio": 0.8889, "offer_ratio": 1.1111, "status": "placeholder: pilot 40/45/50"},
-    "no_range": {"cost_ratio": 1.5, "offer_ratio": 1.625, "status": "placeholder: pilot 60/40/65"}
+    "under_budget": {"kind": "under_budget", "cost_ratio": 0.80, "offer_ratio": 0.90, "status": "H1 starting value (A11): opening offer inside the budget, at the midpoint of C..B"},
+    "over_budget": {"kind": "over_budget", "cost_ratio": 0.80, "offer_ratio": 1.15, "status": "H1 starting value (A11): opening offer 15% over the budget; H1's primary comparison"},
+    "no_overlap": {"kind": "no_overlap", "cost_ratio": 1.20, "offer_ratio": 1.30, "status": "H1 starting value (A11): cost above the budget, no deal suits both sides"},
+    "wide": {"cost_ratio": 0.6667, "offer_ratio": 0.8333, "status": "pilot only: 40/60/50"},
+    "narrow": {"cost_ratio": 0.8889, "offer_ratio": 1.1111, "status": "pilot only: 40/45/50"},
+    "no_range": {"cost_ratio": 1.5, "offer_ratio": 1.625, "status": "pilot only: 60/40/65"}
   },
   "case_context": {
     "status": "draft",
@@ -50,19 +53,20 @@
   },
   "category_glossary": "data/procurement/category_glossary.csv",
   "candidates": "data/procurement/candidates.csv",
-  "_comment_stages": "Each stage crosses seller_prompt_versions x buyer_prompt_versions (experiments/goal_versions.py); only one side may leave v1 in a game, and plan.py refuses a stage that would pair two off-baseline versions. formal: true makes batch_runner refuse to run while code is uncommitted. tactic_structures limits a tactic to some structures; order_blocks: case runs all pairs of a case back to back (pairs and the languages within a pair still in random order).",
+  "_comment_stages": "Each stage crosses seller_prompt_versions x buyer_prompt_versions (experiments/goal_versions.py); plan.py refuses a stage whose version pair goal_versions.check_combination rejects. formal: true makes batch_runner refuse to run while code is uncommitted. n_cases: plan.py refuses unless the stage's roles hold exactly this many cases. max_attempts: batch_runner's default number of attempts per game (first run included). Structures with a `kind` are checked case by case against T1 when the plan is built and again before a run. tactic_structures limits a tactic to some structures; order_blocks: case runs all pairs of a case back to back (pairs and the languages within a pair still in random order).",
   "stages": {
     "h1": {
-      "_comment": "H1 (free model seller after the scripted opening, all three structures) and experiment B (scripted_neutral: fully scripted seller, narrow only) in one plan, so the two arms run in the same period; order_blocks case keeps all games of a case together.",
+      "_comment": "H1 (h1_decision_record.md A2, A10-A14): 80 case pairs, the model seller after the scripted opening, three price structures (A11), both sides on prompt v1.1 (A13). Experiment B is postponed (A12), so there is no scripted_neutral tactic. max_attempts 4 = the first run plus up to 3 retries (A14). order_blocks case keeps all games of a case together.",
       "formal": true,
       "roles": ["stage1_2"],
+      "n_cases": 80,
+      "max_attempts": 4,
       "languages": ["en", "zh"],
-      "structures": ["wide", "narrow", "no_range"],
-      "tactics": ["baseline", "scripted_neutral"],
-      "tactic_structures": {"scripted_neutral": ["narrow"]},
+      "structures": ["under_budget", "over_budget", "no_overlap"],
+      "tactics": ["baseline"],
       "order_blocks": "case",
-      "seller_prompt_versions": ["v1"],
-      "buyer_prompt_versions": ["v1"],
+      "seller_prompt_versions": ["v1.1"],
+      "buyer_prompt_versions": ["v1.1"],
       "reps": 1,
       "seed": 20261101
     },

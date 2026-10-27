@@ -95,6 +95,42 @@ def prices(config, budget, structure):
     )
 
 
+# T1 (h1_decision_record.md section 5), per kind of price structure.
+T1_RULES = {
+    "under_budget": ("C < O < B", lambda b, c, o: c < o < b),
+    "over_budget": ("C < B < O", lambda b, c, o: c < b < o),
+    "no_overlap": ("B < C < O", lambda b, c, o: b < c < o),
+}
+
+
+def t1_problems(config, case, structures):
+    """T1 for one case, on the rounded prices it would play: each
+    structure with a `kind` keeps its order of B, C and O, every opening
+    offer stays at or under offer_ceiling_ratio x B, and the structures a
+    deal is possible in (under/over budget) share one C. Structures
+    without a kind (the pilot ones) are not checked. Returns the problems,
+    empty when the case passes."""
+    b = round_half_up(case["budget"])
+    problems, tradable_costs = [], {}
+    for structure in structures:
+        kind = config["price_structures"][structure].get("kind")
+        if kind is None:
+            continue
+        if kind not in T1_RULES:
+            raise PriceRuleError(f"{structure}: unknown kind {kind!r}")
+        c, o, _ = prices(config, b, structure)
+        rule, holds = T1_RULES[kind]
+        if not holds(b, c, o):
+            problems.append(f"{structure}: B={b} C={c} O={o} breaks {rule}")
+        if o > b * config["offer_ceiling_ratio"]:
+            problems.append(f"{structure}: O={o} is over {config['offer_ceiling_ratio']} x B={b}")
+        if kind != "no_overlap":
+            tradable_costs[structure] = c
+    if len(set(tradable_costs.values())) > 1:
+        problems.append(f"under/over-budget structures must share C, got {tradable_costs}")
+    return problems
+
+
 def case_context(config, case, language, glossary):
     label, source = category_label(case, language, glossary)
     text = config["case_context"][language].format(

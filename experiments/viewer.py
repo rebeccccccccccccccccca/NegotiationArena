@@ -92,7 +92,11 @@ STATUS_LABELS = {"ok": "成交", "rejected": "拒絕", "max_rounds": "回合用�
 # Statuses of a game that ran to a clean end; anything else is an error.
 VALID_STATUSES = list(STATUS_LABELS)
 ERROR_LABEL = "錯誤"
-STRUCTURE_LABELS = {"wide": "寬鬆", "narrow": "緊縮", "no_range": "無交集"}
+STRUCTURE_LABELS = {
+    "under_budget": "預算內首價", "over_budget": "超預算首價", "no_overlap": "無交集",
+    # The pilots' structures (pilot ratios).
+    "wide": "寬鬆", "narrow": "緊縮", "no_range": "無交集（前導）",
+}
 LANGUAGE_LABELS = {"en": "英文", "zh": "中文"}
 FIRST_RESPONSE_LABELS = {
     "counter": "還價（低於開價）",

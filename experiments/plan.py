@@ -5,9 +5,10 @@ Every case assigned to the stage's roles gets every combination of
 language x price structure x tactic x seller prompt version x buyer
 prompt version (x reps), so each case is paired with itself across
 languages; `tactic_structures` can limit a tactic to some structures
-(experiment B's scripted seller runs only in narrow). A stage that would
-pair two off-baseline versions (see experiments/goal_versions.py) is
-refused before anything is written.
+(e.g. experiment B's scripted seller in one structure). Refused before
+anything is written: a version pair experiments/goal_versions.py rejects,
+a stage whose roles do not hold exactly `n_cases` cases, and any case
+whose rounded prices break T1 (experiments/cases.py t1_problems).
 Execution order is randomised with the stage's seed by pair: the pairs
 run in random order, and the two languages of a pair run back to back,
 in random order, so a pair's games are minutes apart and a model update
@@ -29,7 +30,7 @@ import csv
 import random
 from collections import defaultdict
 
-from experiments.cases import CONFIG_PATH, ROOT, file_sha256, load_cases, load_config
+from experiments.cases import CONFIG_PATH, ROOT, file_sha256, load_cases, load_config, t1_problems
 from experiments.goal_versions import check_combination
 
 PLAN_DIR = ROOT / "experiments" / "plans"
@@ -67,6 +68,18 @@ def build_plan(config, stage):
     for seller, buyer in versions:
         check_combination(seller, buyer)
     cases = load_cases(config, spec["roles"], spec.get("max_cases"))
+    if spec.get("n_cases") is not None and len(cases) != spec["n_cases"]:
+        raise SystemExit(
+            f"{stage}: roles {spec['roles']} hold {len(cases)} cases, the stage needs "
+            f"exactly {spec['n_cases']} (has the case pool been rebuilt and frozen?)"
+        )
+    problems = [
+        f"  {case['case_id']}: {p}"
+        for case in cases
+        for p in t1_problems(config, case, spec["structures"])
+    ]
+    if problems:
+        raise SystemExit(f"{stage}: T1 fails for these cases:\n" + "\n".join(problems))
     rows = []
     for i, case in enumerate(cases):
         case_no = i + 1
