@@ -309,3 +309,55 @@ class BuyerGoalZHV3(Goal):
             "_type": "buyer_goal_zh_v3",
             "_value": self.willingness_to_pay.json(),
         }
+
+
+# Prompt version v1.1 (h1_decision_record.md A8, A13): v1 with the upstream
+# slips fixed. Only the English seller sentence changes ("It costed" ->
+# "It cost"); the other three keep the v1 text, and are separate classes so
+# that every game records which version it ran (their own _type) and the
+# prompt template renders its v1.1 text (prompt_template). The v1 classes
+# above stay as they were.
+
+
+class SellerGoalV11(SellerGoal):
+    prompt_template = "v1.1"
+
+    def __init__(self, cost_of_production: Valuation):
+        super().__init__(cost_of_production)
+        self.goal = f"Sell resources for as many {MONEY_TOKEN} as possible. It cost {self.cost_of_production} to produce the resources. Never sell below cost."
+
+    def json(self):
+        return {
+            "_type": "seller_goal_v1_1",
+            "_value": self.cost_of_production.json(),
+        }
+
+
+class SellerGoalZHV11(SellerGoalZH):
+    prompt_template = "v1.1"
+
+    def json(self):
+        return {
+            "_type": "seller_goal_zh_v1_1",
+            "_value": self.cost_of_production.json(),
+        }
+
+
+class BuyerGoalV11(BuyerGoal):
+    prompt_template = "v1.1"
+
+    def json(self):
+        return {
+            "_type": "buyer_goal_v1_1",
+            "_value": self.willingness_to_pay.json(),
+        }
+
+
+class BuyerGoalZHV11(BuyerGoalZH):
+    prompt_template = "v1.1"
+
+    def json(self):
+        return {
+            "_type": "buyer_goal_zh_v1_1",
+            "_value": self.willingness_to_pay.json(),
+        }

@@ -8,7 +8,17 @@ def buy_sell_prompt(
     maximum_number_of_proposals,
     player_social_behaviour,
 ):
-    prompt = f"""You are playing game where you are buying or selling an object. There is only one object for sale/purcahse.
+    # Prompt version v1.1 fixes upstream slips in this text (a typo, two
+    # grammar errors and an unclosed tag; h1_decision_record.md A8, A13);
+    # v1 keeps the original text so earlier games stay reproducible. The
+    # version travels with the goal: the v1.1 goal classes carry
+    # prompt_template = "v1.1".
+    fixed = getattr(player_goal, "prompt_template", "v1") == "v1.1"
+    playing = "playing a game" if fixed else "playing game"
+    purchase = "purchase" if fixed else "purcahse"
+    disclose = "want to disclose" if fixed else "want disclose"
+    message_close = f"</{MESSAGE_TAG}>" if fixed else f"</{MESSAGE_TAG}"
+    prompt = f"""You are {playing} where you are buying or selling an object. There is only one object for sale/{purchase}.
 
 {AGENT_ONE} is going to sell one object. {AGENT_TWO} gives {MONEY_TOKEN} to buy resources.
 
@@ -44,7 +54,7 @@ This information will not be sent to the other player. It is just for you to kee
 
 <{MESSAGE_TAG}>your message here</{MESSAGE_TAG}>
 
-You can decide if you want disclose your resources, goals, cost and willingness to pay in the message.
+You can decide if you {disclose} your resources, goals, cost and willingness to pay in the message.
 ```
 
 Here is what you have access to:
@@ -63,7 +73,7 @@ All the responses you send should contain the following and in this order:
 <{REASONING_TAG}> [add here] </{REASONING_TAG}>
 <{PLAYER_ANSWER_TAG}> [add here] </{PLAYER_ANSWER_TAG}>
 <{PROPOSED_TRADE_TAG}> [add here] </{PROPOSED_TRADE_TAG}>
-<{MESSAGE_TAG}> [add here] </{MESSAGE_TAG}
+<{MESSAGE_TAG}> [add here] {message_close}
 ```
 
 Please be sure to include all.

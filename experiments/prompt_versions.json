@@ -23,6 +23,25 @@
     "commit": "4ee40f05301a2164ec789e6e3a19cfb04f1e84cc"
   },
   {
+    "version_id": "v1.1",
+    "applies_to": "seller, buyer",
+    "purpose": "H1 正式資料用的基準版：v1 修正上游錯字與缺標籤（h1_decision_record.md A8、A13）",
+    "status": "使用中（H1）；中英全文待研究者審閱",
+    "code_ref": "SellerGoalV11 / SellerGoalZHV11 / BuyerGoalV11 / BuyerGoalZHV11 (negotiationarena/game_objects/goal.py)；buy_sell_prompt 依目標句的 prompt_template 渲染 v1.1 模板 (games/buy_sell_game/prompt.py、games/buy_sell_game_zh/prompt.py)",
+    "rationale": "v1 的英文模板寫成 purcahse，還有 playing game、want disclose 兩處文法錯誤；英文賣方目標句寫成 It costed；中英模板最後的 </message 缺 >。英文獨有的錯字與文法錯誤會混進中英比較，所以 H1 前修正。",
+    "changes": [
+      "英文模板：playing game → playing a game",
+      "英文模板：sale/purcahse → sale/purchase",
+      "英文模板：want disclose → want to disclose",
+      "英文賣方目標句：It costed → It cost",
+      "中英模板格式說明最後一行：</message → </message>"
+    ],
+    "hypothesis": "N/A（修正錯字，不是用來檢驗假設的版本）。",
+    "note": "原版 v1 的類別與模板文字保留不動，供追溯。中文目標句與英文買方目標句的文字與 v1 相同，只換成 v1.1 類別，讓每局記錄版本並渲染 v1.1 模板。v2、v3 是以 v1 為底的變體，不能與 v1.1 同局使用（goal_versions.check_combination 會擋下）。兩處文法修正是在 10-27 的解析驗證局之後才加入，只改敘述文字、不動任何標籤，所以未再跑對局。",
+    "date": "2026-10-27",
+    "commit": null
+  },
+  {
     "version_id": "v2",
     "applies_to": "seller",
     "purpose": "措辭檢驗（只改寫賣方成本句，買方維持 v1）",

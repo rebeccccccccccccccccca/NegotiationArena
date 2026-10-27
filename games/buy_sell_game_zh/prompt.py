@@ -8,6 +8,12 @@ def buy_sell_prompt(
     maximum_number_of_proposals,
     player_social_behaviour,
 ):
+    # Prompt version v1.1 closes the last <message> tag (h1_decision_record.md
+    # A8, A13); v1 keeps the original text so earlier games stay
+    # reproducible. The version travels with the goal: the v1.1 goal
+    # classes carry prompt_template = "v1.1".
+    fixed = getattr(player_goal, "prompt_template", "v1") == "v1.1"
+    message_close = f"</{MESSAGE_TAG}>" if fixed else f"</{MESSAGE_TAG}"
     prompt = f"""你正在玩一個買賣物品的賽局。市場上只有一件物品可供買賣。
 
 {AGENT_ONE} 將出售一件物品。{AGENT_TWO} 支付 {MONEY_TOKEN} 來購買物品。
@@ -63,7 +69,7 @@ def buy_sell_prompt(
 <{REASONING_TAG}> [在此填寫] </{REASONING_TAG}>
 <{PLAYER_ANSWER_TAG}> [在此填寫] </{PLAYER_ANSWER_TAG}>
 <{PROPOSED_TRADE_TAG}> [在此填寫] </{PROPOSED_TRADE_TAG}>
-<{MESSAGE_TAG}> [在此填寫] </{MESSAGE_TAG}
+<{MESSAGE_TAG}> [在此填寫] {message_close}
 ```
 
 請務必包含以上所有欄位。

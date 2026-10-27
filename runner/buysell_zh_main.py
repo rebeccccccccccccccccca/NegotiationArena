@@ -7,8 +7,10 @@ from negotiationarena.agents.scripted_seller import FixedFirstOfferSellerAgent
 from negotiationarena.game_objects.resource import Resources
 from negotiationarena.game_objects.goal import (
     BuyerGoalZH,
+    BuyerGoalZHV11,
     SellerGoalZH,
     SellerGoalZHV2,
+    SellerGoalZHV11,
 )
 from negotiationarena.game_objects.valuation import Valuation
 from negotiationarena.constants import *
@@ -51,12 +53,13 @@ def parse_args():
     )
     parser.add_argument(
         "--prompt-version",
-        choices=["v1", "v2"],
+        choices=["v1", "v1.1", "v2"],
         default="v1",
-        help="v1 is the standard SellerGoalZH cost sentence; v2 is the "
-        "task04 paraphrase (same meaning, different wording), used to "
-        "check if the seller's opening-price behaviour is wording-"
-        "sensitive. Never overwrites v1.",
+        help="v1 is the standard SellerGoalZH cost sentence; v1.1 is v1 "
+        "with the prompt template's typo fixed, for both sides (the "
+        "version H1 runs); v2 is the task04 paraphrase (same meaning, "
+        "different wording), used to check if the seller's opening-price "
+        "behaviour is wording-sensitive. Never overwrites v1.",
     )
     add_throttle_args(parser)
     return parser.parse_args()
@@ -87,15 +90,16 @@ if __name__ == "__main__":
                 a1 = ChatGPTAgent(agent_name=AGENT_ONE, **AGENT_KWARGS)
             a2 = ChatGPTAgent(agent_name=AGENT_TWO, **AGENT_KWARGS)
 
-            seller_goal_cls = (
-                SellerGoalZH if args.prompt_version == "v1" else SellerGoalZHV2
-            )
+            seller_goal_cls = {
+                "v1": SellerGoalZH, "v1.1": SellerGoalZHV11, "v2": SellerGoalZHV2,
+            }[args.prompt_version]
+            buyer_goal_cls = BuyerGoalZHV11 if args.prompt_version == "v1.1" else BuyerGoalZH
             c = BuySellGame(
                 players=[a1, a2],
                 iterations=10,
                 player_goals=[
                     seller_goal_cls(cost_of_production=Valuation({"X": COST})),
-                    BuyerGoalZH(willingness_to_pay=Valuation({"X": WTP})),
+                    buyer_goal_cls(willingness_to_pay=Valuation({"X": WTP})),
                 ],
                 player_starting_resources=[
                     Resources({"X": 1}),

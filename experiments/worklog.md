@@ -424,3 +424,66 @@
    檢查、列出 110 筆用到的分類給你審中英名稱。
 3. 價格與端到端小試跑（校準組約 10 筆）→ 你在 Viewer 檢查 → 產生 H1 計畫並
    檢查配對 → 你 commit、打 tag → 啟動 H1。
+
+## 2026-10-27
+
+### 決策（決策紀錄升為 v0.7）
+
+- 價格比例的前導起始值（A11）：C/B 0.80、預算內首價 0.90、超預算首價 1.15；
+  無交集 C/B 1.20、首價 1.30。這是依情境需要設定的起始值，不是由文獻或資料推導
+  （只有 0.90 是可成交區間的中點）；先用校準案例做小前導確認可行性，可行即固定，
+  不依中英差異選擇。0.90 與 1.15 對預算不對稱，兩種首價情境的比較只代表這兩個
+  具體設定；H1 主要比較在 1.15 情境內，不受影響。
+- 實驗 B 延後，H1 先單獨執行（A12）；之後若執行，不做 H1 減 B 的差值比較。
+- 修正版 prompt 代號 `v1.1`，原版 `v1` 保留供追溯（A13）。
+- 配對 t 檢定為主分析；技術失敗首次執行後最多額外重試 3 次；整對無法完成時依
+  `pool_rank` 取備用案例、中英一起執行；備用用盡仍不足 80 對，按實際有效對數
+  分析並報告缺失原因與精度限制（A14）。
+- 確認表的說法改為「排除超過 2 筆就補案例」，確認時依實際判斷填寫，不為湊數
+  勉強納入。
+- 小前導的可行性門檻草稿寫入決策紀錄第 4 節（解析成功 ≥ 95%、各情境正常結束、
+  超預算首價情境的份額不全相同、沒有只出現在某一語言的系統性失敗），待審。
+- H1 規模：B 延後後每案例 6 局，若次要情境都跑滿 80 個案例共 480 局。
+
+### 程式與資料：prompt v1.1（A13）
+
+- 框架檔案（不改賽局邏輯；`game.py`、`parser.py`、agent 程式未動）：
+  - `games/buy_sell_game/prompt.py`：`purcahse` → `purchase`、最後的 `</message`
+    → `</message>`，只在 v1.1 生效。
+  - `games/buy_sell_game_zh/prompt.py`：最後的 `</message` → `</message>`，只在
+    v1.1 生效。
+  - `negotiationarena/game_objects/goal.py`：新增 `SellerGoalV11`（`It costed` →
+    `It cost`）、`SellerGoalZHV11`、`BuyerGoalV11`、`BuyerGoalZHV11`（文字與 v1
+    相同），各有自己的 `_type`，並以 `prompt_template = "v1.1"` 讓模板渲染 v1.1。
+- 版本由目標句帶著走：模板依目標句的 `prompt_template` 決定用 v1 或 v1.1。v1 的
+  類別與模板文字未動；改前改後渲染的 v1 中英雙方 prompt 逐字相同。
+- `experiments/goal_versions.py`：登記 v1.1；組合規則改為「雙方同一基準（v1 或
+  v1.1），或一方是以對方基準為底的變體（v2、v3 以 v1 為底）」，v1 與 v1.1 同局、
+  v1.1 配 v3 都會被擋下。10 種組合測試符合預期。
+- `experiments/summarize.py`：新增 `prompt_template_check` 欄，核對每局實際收到
+  的模板是否與目標句宣稱的版本一致（只有 v1 模板的最後一個 `</message` 沒有
+  `>`）；用合成的 v1／v1.1 prompt 測過，人為不一致時會標 mismatch。
+- `experiments/prompt_versions.json` 新增 v1.1 說明；兩支單局腳本加 `--prompt-
+  version v1.1`。既有 16 項離線測試通過。
+- 依 CLAUDE.md 實跑驗證（Luna，v1.1）：英文一局 7 步成交、中文一局 3 步成交；
+  每一步都解析到 `<player answer>` 與 `<newly proposed trade>`，`summarize` 判定
+  雙方 v1.1、模板核對 ok。兩局已移到 `.logs_archive/en_baseline_test/`、
+  `.logs_archive/zh_baseline_test/`。
+- 研究者決定把英文模板的兩處文法問題也修進 v1.1：`playing game` → `playing a
+  game`、`want disclose` → `want to disclose`（v1 仍保留原文）。重新核對：改前改後
+  的 v1 中英四份 prompt 逐字相同；中文 v1.1 不受影響；英文 v1.1 與 v1 共 5 處差異
+  （賣方 4 行、買方 3 行）。只改敘述文字、不動標籤，未再跑對局；上面兩局驗證局
+  用的是加入這兩處之前的 v1.1。`prompt_versions.json` 已同步。
+
+### 下次要做
+
+你：
+
+1. 審決策紀錄 v0.7（A11–A14、第 4 節的可行性門檻）。
+2. 審 prompt v1.1 的中英全文。
+3. 在 `pool_confirm.csv` 逐筆確認 112 筆。
+
+我：
+
+1. 設定檔改成新價格設計（A11）、80 對與 v1.1，加 T1 檢查。
+2. 你確認 112 筆後：套用、重建案例池、分布報告，你確認後凍結。

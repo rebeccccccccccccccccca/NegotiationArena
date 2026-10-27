@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from negotiationarena.agents.chatgpt import ChatGPTAgent
 from negotiationarena.agents.scripted_seller import FixedFirstOfferSellerAgent
 from negotiationarena.game_objects.resource import Resources
-from negotiationarena.game_objects.goal import BuyerGoal, SellerGoal, SellerGoalV2
+from negotiationarena.game_objects.goal import BuyerGoal, BuyerGoalV11, SellerGoal, SellerGoalV2, SellerGoalV11
 from negotiationarena.game_objects.valuation import Valuation
 from negotiationarena.constants import *
 import traceback
@@ -47,12 +47,13 @@ def parse_args():
     )
     parser.add_argument(
         "--prompt-version",
-        choices=["v1", "v2"],
+        choices=["v1", "v1.1", "v2"],
         default="v1",
-        help="v1 is the standard SellerGoal cost sentence; v2 is the "
-        "task04 paraphrase (same meaning, different wording), used to "
-        "check if the seller's opening-price behaviour is wording-"
-        "sensitive. Never overwrites v1.",
+        help="v1 is the standard SellerGoal cost sentence; v1.1 is v1 with "
+        "its typos fixed, for both sides and the prompt template (the "
+        "version H1 runs); v2 is the task04 paraphrase (same meaning, "
+        "different wording), used to check if the seller's opening-price "
+        "behaviour is wording-sensitive. Never overwrites v1.",
     )
     add_throttle_args(parser)
     return parser.parse_args()
@@ -83,13 +84,14 @@ if __name__ == "__main__":
                 a1 = ChatGPTAgent(agent_name=AGENT_ONE, **AGENT_KWARGS)
             a2 = ChatGPTAgent(agent_name=AGENT_TWO, **AGENT_KWARGS)
 
-            seller_goal_cls = SellerGoal if args.prompt_version == "v1" else SellerGoalV2
+            seller_goal_cls = {"v1": SellerGoal, "v1.1": SellerGoalV11, "v2": SellerGoalV2}[args.prompt_version]
+            buyer_goal_cls = BuyerGoalV11 if args.prompt_version == "v1.1" else BuyerGoal
             c = BuySellGame(
                 players=[a1, a2],
                 iterations=10,
                 player_goals=[
                     seller_goal_cls(cost_of_production=Valuation({"X": COST})),
-                    BuyerGoal(willingness_to_pay=Valuation({"X": WTP})),
+                    buyer_goal_cls(willingness_to_pay=Valuation({"X": WTP})),
                 ],
                 player_starting_resources=[
                     Resources({"X": 1}),

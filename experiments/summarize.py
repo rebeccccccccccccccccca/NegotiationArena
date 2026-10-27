@@ -16,7 +16,7 @@ from collections import defaultdict
 
 from experiments.goal_versions import GOAL_TYPES, combined_label
 from experiments.run_logger import estimate_cost
-from negotiationarena.constants import MONEY_TOKEN
+from negotiationarena.constants import MESSAGE_TAG, MONEY_TOKEN
 
 LOGS_DIR = ".logs"
 OUTPUT_CSV = os.path.join("experiments", "results.csv")
@@ -47,6 +47,7 @@ FIELDNAMES = [
     "prompt_version",
     "seller_prompt_version",
     "buyer_prompt_version",
+    "prompt_template_check",
     "data_version",
     "status",
     "temperature",
@@ -134,6 +135,22 @@ def goal_versions_played(settings, system_prompts):
             version = "v0"
         versions[side_found] = version
     return versions.get("seller", "unknown"), versions.get("buyer", "unknown")
+
+
+def prompt_template_check(versions, system_prompts):
+    """Cross-check the prompt template each side actually received against
+    the version its goal class declares: only the v1 template leaves the
+    last <message> tag unclosed. "ok", "mismatch", or "" when a prompt is
+    missing or a version unknown."""
+    result = "ok"
+    for side, version in versions.items():
+        prompt = system_prompts[side]
+        if not prompt or version == "unknown":
+            return ""
+        received = "v1" if f"</{MESSAGE_TAG}\n" in prompt else "v1.1"
+        if received != ("v1.1" if version == "v1.1" else "v1"):
+            result = "mismatch"
+    return result
 
 
 def trade_price(trade_obj, giver):
@@ -504,6 +521,10 @@ def summarize_game(game_id, path):
         "prompt_version": combined_label(seller_version, buyer_version),
         "seller_prompt_version": seller_version,
         "buyer_prompt_version": buyer_version,
+        "prompt_template_check": prompt_template_check(
+            {"seller": seller_version, "buyer": buyer_version},
+            {"seller": red_system_prompt, "buyer": blue_system_prompt},
+        ),
         "data_version": data_version,
         "status": status,
         "temperature": blue.get("temperature"),
