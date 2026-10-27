@@ -10,23 +10,32 @@ excluded conservatively.
           the notice are prefilled (chk_total_price, chk_budget_match); the
           researcher fills chk_item_specific, chk_one_lot, chk_no_contrary,
           confirm (Y/N), reason_code (E1-E10 when N) and confirm_note.
+  add     appends top-up cases to the sheet (h1_decision_record.md section 6,
+          point 4: Y cases from coding_round2.csv verified under the
+          round-2 protocol, taken in pool_rank order), with source marking
+          them as top-ups and verification holding the evidence found
+          (a JSON file mapping case_id -> text). Existing rows are kept.
   apply   checks the sheet and, with --write, updates case_coding.csv:
           confirm = N takes the given code; every Y case in coding_round2.csv
-          becomes N / E10 (excluded conservatively, not verified); confirmed
-          cases get the confirmation recorded in coder_note. Refuses to
-          write while any row is unconfirmed, a confirmed Y fails a check,
-          or fewer than NEEDED cases are confirmed.
+          that is not a confirmed top-up becomes N / E10 (excluded
+          conservatively, not verified); confirmed cases get the
+          confirmation recorded in coder_note. Refuses to write while any
+          row is unconfirmed, a confirmed Y fails a check, or fewer than
+          NEEDED cases are confirmed.
 
 Usage (from the repo root):
   .venv\\Scripts\\python -m experiments.procurement.pool_confirm export
+  .venv\\Scripts\\python -m experiments.procurement.pool_confirm add CASE_ID ... --evidence FILE.json
   .venv\\Scripts\\python -m experiments.procurement.pool_confirm apply
   .venv\\Scripts\\python -m experiments.procurement.pool_confirm apply --write
 """
 
 import argparse
+import csv
 import json
 import re
 from collections import Counter
+from pathlib import Path
 
 from experiments.cases import ROOT
 from experiments.procurement.coding_round2 import (
@@ -45,8 +54,10 @@ FIELDS = [
     "unit_name", "title", "item_name", "notice_url", "amount_tier", "award_method",
     "award_unit_price", "est_quantity", "contract_period", "contract_days",
     "additional_note", "auto_flags",
-] + CHECKS + ["confirm", "reason_code", "confirm_note"]
+] + CHECKS + ["confirm", "reason_code", "confirm_note", "source", "verification"]
 LEAN_EXCLUSION = "｜精簡路線保守排除（有疑義旗標，未依第二輪程序查證）"
+SOURCE_CANDIDATE = "候選（覆核表外、無旗標）"
+SOURCE_TOPUP = "補足（覆核表，第二輪程序查證）"
 
 
 def first_value(detail, suffix):
@@ -73,14 +84,7 @@ def auto_flags(row, notice):
     return "；".join(flags)
 
 
-def export(args):
-    if CONFIRM_PATH.exists() and not args.force:
-        raise SystemExit(f"{CONFIRM_PATH.name} exists (it may hold confirmations); --force to overwrite")
-    coding = read_csv(CODING_PATH)
-    in_sheet = {r["case_id"] for r in read_csv(SHEET_PATH)}
-    excluded = set(json.loads(POOL_RULES_PATH.read_text(encoding="utf-8"))["exclude_case_ids"])
-    cands = [r for r in coding if r["include"] == "Y" and r["case_id"] not in in_sheet | excluded]
-    ids = {r["case_id"] for r in cands}
+def load_details(ids):
     details = {}
     with open(DETAILS_PATH, encoding="utf-8") as f:
         for line in f:
@@ -88,29 +92,71 @@ def export(args):
                 rec = json.loads(line)
                 if rec["filename"] in ids:
                     details[rec["filename"]] = rec
+    return details
+
+
+def sheet_row(case, rec, source, verification=""):
+    """One confirmation-sheet row for a case_coding.csv row and its notice."""
+    notice = notice_details(rec)
+    return {
+        **{k: case[k] for k in ("case_id", "pool_rank", "category_code", "category_zh", "budget",
+                                "quantity", "unit_name", "title", "item_name")},
+        **{k: notice[k] for k in ("notice_url", "amount_tier", "contract_period",
+                                  "contract_days", "additional_note")},
+        "award_method": "單價" if notice["unit_price_award"] == "是" else "總價",
+        "award_unit_price": first_value(rec, "得標廠商1:決標單價"),
+        "est_quantity": first_value(rec, "得標廠商1:預估需求數量"),
+        "auto_flags": auto_flags(case, notice),
+        # Facts read straight from the notice; the researcher may change them.
+        "chk_total_price": "Y" if notice["unit_price_award"] != "是" else "N",
+        "chk_budget_match": "Y" if notice["amount_tier"] == SMALL_TIER else "N",
+        **{k: "" for k in ("chk_item_specific", "chk_one_lot", "chk_no_contrary",
+                           "confirm", "reason_code", "confirm_note")},
+        "source": source,
+        "verification": verification,
+    }
+
+
+def export(args):
+    if CONFIRM_PATH.exists() and not args.force:
+        raise SystemExit(f"{CONFIRM_PATH.name} exists (it may hold confirmations); --force to overwrite")
+    coding = read_csv(CODING_PATH)
+    in_sheet = {r["case_id"] for r in read_csv(SHEET_PATH)}
+    excluded = set(json.loads(POOL_RULES_PATH.read_text(encoding="utf-8"))["exclude_case_ids"])
+    cands = [r for r in coding if r["include"] == "Y" and r["case_id"] not in in_sheet | excluded]
+    details = load_details({r["case_id"] for r in cands})
     cands.sort(key=lambda r: (r["category_code"], float(r["budget"])))
-    rows = []
-    for r in cands:
-        rec = details[r["case_id"]]
-        notice = notice_details(rec)
-        rows.append({
-            **{k: r[k] for k in ("case_id", "pool_rank", "category_code", "category_zh", "budget",
-                                 "quantity", "unit_name", "title", "item_name")},
-            **{k: notice[k] for k in ("notice_url", "amount_tier", "contract_period",
-                                      "contract_days", "additional_note")},
-            "award_method": "單價" if notice["unit_price_award"] == "是" else "總價",
-            "award_unit_price": first_value(rec, "得標廠商1:決標單價"),
-            "est_quantity": first_value(rec, "得標廠商1:預估需求數量"),
-            "auto_flags": auto_flags(r, notice),
-            # Facts read straight from the notice; the researcher may change them.
-            "chk_total_price": "Y" if notice["unit_price_award"] != "是" else "N",
-            "chk_budget_match": "Y" if notice["amount_tier"] == SMALL_TIER else "N",
-            **{k: "" for k in ("chk_item_specific", "chk_one_lot", "chk_no_contrary",
-                               "confirm", "reason_code", "confirm_note")},
-        })
+    rows = [sheet_row(r, details[r["case_id"]], SOURCE_CANDIDATE) for r in cands]
     write_csv(CONFIRM_PATH, FIELDS, rows)
     print(f"wrote {len(rows)} candidates to {CONFIRM_PATH.name}; "
           f"{sum(1 for r in rows if r['auto_flags'])} carry an automatic flag")
+
+
+def add(args):
+    evidence = json.loads(Path(args.evidence).read_text(encoding="utf-8"))
+    with open(CONFIRM_PATH, encoding="utf-8-sig", newline="") as f:
+        reader = csv.DictReader(f)
+        fields, existing = list(reader.fieldnames), list(reader)
+    by_id = {r["case_id"]: r for r in read_csv(CODING_PATH)}
+    in_sheet = {r["case_id"] for r in read_csv(SHEET_PATH)}
+    excluded = set(json.loads(POOL_RULES_PATH.read_text(encoding="utf-8"))["exclude_case_ids"])
+    have = {r["case_id"] for r in existing}
+    for cid in args.case_ids:
+        if cid in have:
+            raise SystemExit(f"{cid} is already in {CONFIRM_PATH.name}")
+        if cid not in in_sheet or cid in excluded or by_id.get(cid, {}).get("include") != "Y":
+            raise SystemExit(f"{cid}: a top-up must be a usable Y case in {SHEET_PATH.name}")
+        if not evidence.get(cid, "").strip():
+            raise SystemExit(f"{cid}: no verification text for it in {args.evidence}")
+    details = load_details(set(args.case_ids))
+    new = [sheet_row(by_id[cid], details[cid], SOURCE_TOPUP, evidence[cid].strip()) for cid in args.case_ids]
+    fields += [k for k in FIELDS if k not in fields]
+    for row in existing:
+        row.setdefault("source", SOURCE_CANDIDATE)
+        if not row["source"]:
+            row["source"] = SOURCE_CANDIDATE
+    write_csv(CONFIRM_PATH, fields, existing + new)
+    print(f"{len(existing)} rows kept; added {len(new)} top-up(s): {', '.join(args.case_ids)}")
 
 
 def check_row(row):
@@ -143,13 +189,16 @@ def apply(args):
         problems.append(f"{unconfirmed} row(s) not confirmed yet (confirm is empty)")
     confirmed = [r for r in sheet if r["confirm"].strip() == "Y"]
     rejected = [r for r in sheet if r["confirm"].strip() == "N"]
+    confirmed_ids = {r["case_id"] for r in confirmed}
     in_sheet_y = [by_id[r["case_id"]] for r in read_csv(SHEET_PATH)
-                  if by_id.get(r["case_id"], {}).get("include") == "Y"]
+                  if by_id.get(r["case_id"], {}).get("include") == "Y"
+                  and r["case_id"] not in confirmed_ids]
+    topups = sum(1 for r in sheet if r.get("source") == SOURCE_TOPUP)
 
-    print(f"{len(sheet)} candidates: {len(confirmed)} confirmed Y, {len(rejected)} N "
+    print(f"{len(sheet)} rows ({topups} top-ups): {len(confirmed)} confirmed Y, {len(rejected)} N "
           f"({dict(Counter(r['reason_code'].strip() for r in rejected))}), "
           f"{len(sheet) - len(confirmed) - len(rejected)} not confirmed yet")
-    print(f"{len(in_sheet_y)} Y cases in {SHEET_PATH.name} would become N/E10 (conservative exclusion)")
+    print(f"{len(in_sheet_y)} other Y cases in {SHEET_PATH.name} would become N/E10 (conservative exclusion)")
     print(f"confirmed {len(confirmed)} / needed {NEEDED}")
     for p in problems:
         print(f"  PROBLEM {p}")
@@ -168,7 +217,8 @@ def apply(args):
     for row in confirmed:
         t = by_id[row["case_id"]]
         note = row["confirm_note"].strip()
-        t["coder_note"] += "｜研究者確認納入" + (f"：{note}" if note else "")
+        label = "研究者確認納入（補足，第二輪程序查證）" if row.get("source") == SOURCE_TOPUP else "研究者確認納入"
+        t["coder_note"] += f"｜{label}" + (f"：{note}" if note else "")
     for t in in_sheet_y:
         t["include"], t["reason_code"] = "N", "E10"
         t["coder_note"] += LEAN_EXCLUSION
@@ -182,6 +232,10 @@ def main():
     p = sub.add_parser("export", help="write the confirmation sheet")
     p.add_argument("--force", action="store_true", help="overwrite an existing sheet")
     p.set_defaults(func=export)
+    p = sub.add_parser("add", help="append verified top-up cases from coding_round2.csv")
+    p.add_argument("case_ids", nargs="+")
+    p.add_argument("--evidence", required=True, help="JSON file: case_id -> verification text")
+    p.set_defaults(func=add)
     p = sub.add_parser("apply", help="check the sheet and update case_coding.csv")
     p.add_argument("--write", action="store_true", help="apply instead of a dry run")
     p.set_defaults(func=apply)
