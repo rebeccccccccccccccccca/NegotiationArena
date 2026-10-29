@@ -20,9 +20,15 @@ sentence, model, and the SHA-256 of the config, plan and candidate pool
 it came from) are stored in game_state.json under `experiment`, next to
 the usual run_metadata.
 
+Spending cap: --budget-tokens stops before the next game once the tokens
+counted reach it (so it can overshoot by one game); with --budget-stages
+the tokens already logged under those stages are counted first, so the
+cap covers every invocation and retry.
+
 Usage (from the repo root):
   .venv\\Scripts\\python -m experiments.batch_runner h1 --dry-run
   .venv\\Scripts\\python -m experiments.batch_runner h1 --max-games-per-run 20
+  .venv\\Scripts\\python -m experiments.batch_runner h1 --budget-tokens 20000000 --budget-stages h1_trial,h1
 """
 
 import argparse
@@ -119,6 +125,21 @@ def attempts_on_disk(stage, profile_name):
         if experiment.get("run_id") and experiment.get("profile", "gpt4omini") == profile_name:
             attempts[experiment["run_id"]].append((d.get("run_metadata") or {}).get("status"))
     return attempts
+
+
+def logged_tokens(stages):
+    """Prompt + completion tokens of every attempt already logged under
+    these stages (failed ones included), so a spending cap counts what
+    earlier invocations used instead of starting from zero."""
+    total = 0
+    for stage in stages:
+        for path in stage_log_root(stage).glob("**/game_state.json"):
+            try:
+                meta = json.loads(path.read_text(encoding="utf-8")).get("run_metadata") or {}
+            except (OSError, json.JSONDecodeError):
+                continue
+            total += (meta.get("prompt_tokens") or 0) + (meta.get("completion_tokens") or 0)
+    return total
 
 
 def read_plan(stage):
@@ -220,6 +241,13 @@ def main():
         help="model profile from experiment_config.json (default: its "
         "model_profile, the one formal runs use)",
     )
+    parser.add_argument(
+        "--budget-stages",
+        help="comma-separated stages whose logged tokens (every attempt) "
+        "count toward --budget-tokens before this run starts, e.g. "
+        "h1_trial,h1: the cap is then cumulative and a resumed run does "
+        "not start again from zero (h1_decision_record.md A19)",
+    )
     add_throttle_args(parser)
     args = parser.parse_args()
 
@@ -308,6 +336,13 @@ def main():
         return
 
     throttle = throttle_from_args(args)
+    if args.budget_stages:
+        budget_stages = [s.strip() for s in args.budget_stages.split(",") if s.strip()]
+        throttle.total_tokens = logged_tokens(budget_stages)
+        print(
+            f"tokens already logged under {', '.join(budget_stages)}: {throttle.total_tokens}"
+            + (f" of budget {args.budget_tokens}" if args.budget_tokens is not None else "")
+        )
     games = []
     stopped = False
     for row in todo:
