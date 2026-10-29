@@ -78,6 +78,20 @@
       "reps": 1,
       "seed": 20261101
     },
+    "h1_trial": {
+      "_comment": "Batch trial before H1 (h1_decision_record.md A18): the first 5 calibration cases by pool_rank x the three H1 structures x en/zh = 30 games, everything else as stage h1. A technical check that v1.1, the A11 ratios, the glossary and the batch flow work together (pairing, saving, settlement); no language comparison and no choice of ratios or wording from it. Not formal: it may run from an uncommitted config and plan, which each game records. Its games are not H1 data.",
+      "roles": ["calibration"],
+      "max_cases": 5,
+      "max_attempts": 4,
+      "languages": ["en", "zh"],
+      "structures": ["under_budget", "over_budget", "no_overlap"],
+      "tactics": ["baseline"],
+      "order_blocks": "case",
+      "seller_prompt_versions": ["v1.1"],
+      "buyer_prompt_versions": ["v1.1"],
+      "reps": 1,
+      "seed": 20261029
+    },
     "pilot_luna10": {
       "roles": ["pool"],
       "max_cases": 5,
