@@ -156,7 +156,7 @@ Every reply you send must contain all of the following fields, in this order:
 <{MESSAGE_TAG}> [add here] </{MESSAGE_TAG}>
 ```
 
-Include all seven fields.
+Please include all seven fields.
 
 {player_social_behaviour}
 

@@ -33,12 +33,12 @@
     "zh": "本局情境：物品 X 代表一批「{category}」，數量 {quantity}，以整批方式交易（X: 1 即整批）。",
     "en": "Scenario: the item X in this game stands for one lot of {category}, quantity {quantity}, traded as a single lot (X: 1 is the whole lot)."
   },
-  "_comment_case_context_versions": "The context sentence per seller prompt version (experiments/cases.py case_context); a version not listed here uses case_context above, which is v1's. v1.1 (h1_decision_record.md A16): object X / 物品 X as in the v1.1 template, no quote marks around the label in either language, the lot stated once. DRAFT: the wording is the researcher's to decide.",
+  "_comment_case_context_versions": "The context sentence per seller prompt version (experiments/cases.py case_context); a version not listed here uses case_context above, which is v1's. v1.1 (h1_decision_record.md A16, A17): object X / 物品 X as in the v1.1 template, no quote marks around the label in either language, the quantity stated as the lot's own (so 1, 220 or 30000 all read right), the lot stated once. Wording reviewed and fixed by the researcher on 2026-10-29.",
   "case_context_versions": {
     "v1.1": {
-      "status": "draft",
-      "zh": "本局情境：物品 X 代表一批{category}，數量 {quantity}；X: 1 表示整批物品。",
-      "en": "Scenario: object X represents one lot of {category}, quantity {quantity}; X: 1 denotes the entire lot."
+      "status": "final (researcher-reviewed 2026-10-29)",
+      "zh": "本局情境：物品 X 代表一批{category}，該批數量為 {quantity}；X: 1 表示整批物品。",
+      "en": "Scenario: object X represents one lot of {category}, with a quantity of {quantity}; X: 1 denotes the entire lot."
     }
   },
   "scripted_seller": {

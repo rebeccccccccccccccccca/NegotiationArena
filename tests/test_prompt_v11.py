@@ -12,7 +12,7 @@ from unittest.mock import patch
 os.environ.setdefault("OPENAI_API_KEY", "offline-test-not-used")
 
 import experiments.batch_runner as br
-from experiments.cases import load_cases, load_config, negotiation_settings
+from experiments.cases import load_cases, load_config, load_glossary, negotiation_settings
 from experiments.goal_versions import BUYER_GOALS, SELLER_GOALS
 from experiments.render_prompts import render
 from experiments.summarize import prompt_template_check
@@ -63,8 +63,17 @@ class TestPromptV11(unittest.TestCase):
             self.assertEqual(context[lang, None], context[lang, "v1"])
             self.assertNotEqual(context[lang, "v1"], context[lang, "v1.1"])
         self.assertIn("「家具」", context["zh", "v1"])
-        self.assertIn("一批家具，數量 1", context["zh", "v1.1"])
-        self.assertIn("one lot of furniture, quantity 1", context["en", "v1.1"])
+        self.assertIn("一批家具，該批數量為 1；", context["zh", "v1.1"])
+        self.assertIn("one lot of furniture, with a quantity of 1;", context["en", "v1.1"])
+
+    def test_glossary_covers_every_pool_case(self):
+        glossary = load_glossary(self.config)
+        cases = load_cases(self.config, {"calibration", "stage1_2", "reserve"})
+        self.assertEqual(len(cases), 110)
+        for case in cases:
+            entry = glossary[case["category_code"]]
+            self.assertTrue(entry["label_zh"].strip() and entry["label_en"].strip(), case["category_code"])
+        self.assertEqual(glossary["384"]["label_en"], "sporting goods")
 
     def test_template_wording_and_trailing_blank_line(self):
         for lang, factory in (("en", prompt_en), ("zh", prompt_zh)):
@@ -73,6 +82,7 @@ class TestPromptV11(unittest.TestCase):
             self.assertTrue(text.endswith("context\n\n"))
             self.assertNotIn("</my goals>,", text)
             self.assertNotIn("DO NOT", text)
+            self.assertIn("Please include all seven fields." if lang == "en" else "請包含全部七個欄位。", text)
             if lang == "en":
                 self.assertIn("A) proposing, B) accepting, or C) rejecting", text)
                 self.assertNotIn("buy resources", text)

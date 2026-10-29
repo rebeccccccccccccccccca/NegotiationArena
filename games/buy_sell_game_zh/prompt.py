@@ -154,7 +154,7 @@ def _buy_sell_prompt_v11(
 <{MESSAGE_TAG}> [在此填寫] </{MESSAGE_TAG}>
 ```
 
-包含全部七個欄位。
+請包含全部七個欄位。
 
 {player_social_behaviour}
 

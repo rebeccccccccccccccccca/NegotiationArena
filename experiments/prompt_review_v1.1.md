@@ -1,6 +1,6 @@
 # prompt v1.1 中英全文審閱稿
 
-由 `experiments/render_prompts.py` 依 `batch_runner.build_game` 的方式組出一局的所有模型可見文字，沒有呼叫 API。分類標籤來源：`data/procurement/category_glossary_draft.csv`（未審初稿）；情境句來源：設定檔 `case_context_versions.v1.1`（狀態 draft）。
+由 `experiments/render_prompts.py` 依 `batch_runner.build_game` 的方式組出一局的所有模型可見文字，沒有呼叫 API。分類標籤來源：`data/procurement/category_glossary.csv`（缺代碼時用官方名稱）；情境句來源：設定檔 `case_context_versions.v1.1`（狀態 final (researcher-reviewed 2026-10-29)）。
 
 - 示例案例：`BDM-1-71210636`（calibration，pool_rank 7），標題「115年臺南市政府教育局檔案庫房檔案架採購案」，分類 381，數量 1
 - 示例情境：超預算首價（`over_budget`）：B = 550000、C = 440000、O = 632500、買方資金 = 1100000
@@ -14,43 +14,22 @@
 
 模型看到的順序（框架原本的做法，`chatgpt.py` 的 `init_agent`）：賣方是 system prompt，再以第一則 user 訊息給角色宣告；買方的角色宣告直接接在 system prompt 最後，沒有另起一則訊息。賣方第一回合由腳本產生，以賣方自己的回覆留在賣方歷史中；買方收到的是其中的公開欄位。
 
-## 0. 2026-10-29 修訂說明（人工整理；重新產生本檔時不會保留這一節）
+## 0. 定稿紀錄（2026-10-29 人工整理；重新產生本檔時不會保留這一節）
 
-研究夥伴的 v1.2 修訂稿併入 v1.1，不另立 v1.2。v1 的文字逐字不變（28 段模型可見文字前後比對相同）。
+研究者已校對全文，v1.1 的中英措辭、情境句與 33 個分類標籤定稿。研究夥伴 v1.2 修訂稿的可用部分已併入 v1.1，不另立 v1.2；v1 原文逐字不變。
 
-**採用研究夥伴修訂稿的部分**
+**研究者校對後的三處修改**
 
-| 項目 | v1.1 現在的寫法 |
-|---|---|
-| object／resources | 交易標的一律寫 object／物品；`my resources` 欄位與所有 XML 標籤不動 |
-| 規則 1 | 兩語都寫明每次回覆必須採取三種動作之一 |
-| 規則 2 | 英文 Do not（不再全大寫）、中文「不得」 |
-| 規則 3 | 字母順序改成和規則 1 一致：A 提出、B 接受、C 拒絕 |
-| 規則 4 | 兩語都並列「資源、目標、成本及願付價格」 |
-| 開頭 | 中文刪掉「市場上」 |
-| 回覆格式 | 兩語都寫「必須依序包含所有欄位」，結尾「包含全部七個欄位」 |
-| 目標句 | 最高／最低價格；金額直接寫「440000 TWD」，不再是「X: 440000 TWD」 |
-| 腳本開價 | My asking price for the object is …／我對這件物品的開價是 … |
-| 格式 | 刪掉 `</my goals>` 後的逗號；買方角色宣告前多一個空行 |
-| 分類用詞 | 採用修訂後的 33 個標籤（31、381 都用家具，448 空調設備，445 廚餘處理設備等） |
+1. 七個欄位：「請包含全部七個欄位。」／"Please include all seven fields."
+2. 情境句寫明數量屬於這批物品：「本局情境：物品 X 代表一批{category}，該批數量為 {quantity}；X: 1 表示整批物品。」／"Scenario: object X represents one lot of {category}, with a quantity of {quantity}; X: 1 denotes the entire lot."
+3. 分類 384：運動用品／sporting goods。
 
-**沒有照修訂稿、另外修正的部分：情境句**
+數量不是 1 的情境句示例：
 
-修訂稿的情境句是「物品 X 代表一批{category}。數量 {quantity} 表示一批；…」，有兩個問題：
+- 282：本局情境：物品 X 代表一批服裝，該批數量為 220；X: 1 表示整批物品。／Scenario: object X represents one lot of clothing, with a quantity of 220; X: 1 denotes the entire lot.
+- 364：本局情境：物品 X 代表一批塑膠包裝製品，該批數量為 30000；X: 1 表示整批物品。／Scenario: object X represents one lot of plastic packaging products, with a quantity of 30000; X: 1 denotes the entire lot.
 
-1. 數量不是 1 的案例會讀成「數量 220 表示一批」，意思錯了。110 筆裡有 11 筆數量不是 1（H1 有 10 筆）。
-2. 英文 "a lot of furniture" 會被讀成「很多家具」。
-
-現在的寫法（仍是草稿）：
-
-- 中文：`本局情境：物品 X 代表一批{category}，數量 {quantity}；X: 1 表示整批物品。`
-- 英文：`Scenario: object X represents one lot of {category}, quantity {quantity}; X: 1 denotes the entire lot.`
-
-**請研究者校對的中文**
-
-- 「包含全部七個欄位。」讀起來像陳述句，是否要改成「請包含全部七個欄位。」或「務必包含全部七個欄位。」
-- 情境句中文的寫法。
-- 分類標籤：445、448、4391 改用案例品項的通稱（廚餘處理設備、空調設備、冷卻設備），不再是分類的通稱；這等於這三類的標籤是依唯一案例決定。
+**分類標籤**：定稿在 `data/procurement/category_glossary.csv`（33 個代碼，涵蓋凍結的 110 筆）。445 廚餘處理設備、448 空調設備、4391 冷卻設備用案例品項的通稱；31、381 都寫「家具」，33 個代碼不必對應 33 個不同標籤。方法章寫法（研究者擬）：「實驗使用依入選案例內容簡化的雙語品項標籤，並保留原始官方分類代碼與名稱。」
 
 ## 1. 賣方（Player RED）system prompt
 
@@ -115,9 +94,9 @@ Every reply you send must contain all of the following fields, in this order:
 <message> [add here] </message>
 ```
 
-Include all seven fields.
+Please include all seven fields.
 
-Scenario: object X represents one lot of furniture, quantity 1; X: 1 denotes the entire lot.
+Scenario: object X represents one lot of furniture, with a quantity of 1; X: 1 denotes the entire lot.
 ````
 
 **中文**
@@ -181,9 +160,9 @@ Player RED 出售這件物品。Player BLUE 支付 TWD 購買這件物品。
 <message> [在此填寫] </message>
 ```
 
-包含全部七個欄位。
+請包含全部七個欄位。
 
-本局情境：物品 X 代表一批家具，數量 1；X: 1 表示整批物品。
+本局情境：物品 X 代表一批家具，該批數量為 1；X: 1 表示整批物品。
 ````
 
 ## 2. 賣方角色宣告（第一則 user 訊息）
@@ -263,9 +242,9 @@ Every reply you send must contain all of the following fields, in this order:
 <message> [add here] </message>
 ```
 
-Include all seven fields.
+Please include all seven fields.
 
-Scenario: object X represents one lot of furniture, quantity 1; X: 1 denotes the entire lot.
+Scenario: object X represents one lot of furniture, with a quantity of 1; X: 1 denotes the entire lot.
 
 You are Player BLUE.
 ````
@@ -331,9 +310,9 @@ Player RED 出售這件物品。Player BLUE 支付 TWD 購買這件物品。
 <message> [在此填寫] </message>
 ```
 
-包含全部七個欄位。
+請包含全部七個欄位。
 
-本局情境：物品 X 代表一批家具，數量 1；X: 1 表示整批物品。
+本局情境：物品 X 代表一批家具，該批數量為 1；X: 1 表示整批物品。
 
 你是 Player BLUE。
 ````

@@ -5,14 +5,14 @@ prompts, the seller's role turn, the seller's scripted opening and what the
 buyer is shown of it. Written as a Markdown sheet for reviewing the wording
 of a prompt version side by side.
 
-The category label comes from the glossary the config names when it has
-the code; with --draft-glossary it comes from that file instead (e.g. the
-unreviewed data/procurement/category_glossary_draft.csv), so the sheet shows
-the wording under review. Nothing is written under .logs/.
+The category label comes from the glossary the config names
+(data/procurement/category_glossary.csv) when it has the code; with
+--draft-glossary it comes from that file instead, so a sheet can show
+wording still under review. Nothing is written under .logs/.
 
 Usage (from the repo root):
   .venv\\Scripts\\python -m experiments.render_prompts --out experiments/prompt_review_v1.1.md
-  .venv\\Scripts\\python -m experiments.render_prompts --draft-glossary data/procurement/category_glossary_draft.csv
+  .venv\\Scripts\\python -m experiments.render_prompts --draft-glossary path/to/draft_glossary.csv
 """
 
 import argparse
