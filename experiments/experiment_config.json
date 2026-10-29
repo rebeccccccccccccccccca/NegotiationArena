@@ -33,6 +33,14 @@
     "zh": "本局情境：物品 X 代表一批「{category}」，數量 {quantity}，以整批方式交易（X: 1 即整批）。",
     "en": "Scenario: the item X in this game stands for one lot of {category}, quantity {quantity}, traded as a single lot (X: 1 is the whole lot)."
   },
+  "_comment_case_context_versions": "The context sentence per seller prompt version (experiments/cases.py case_context); a version not listed here uses case_context above, which is v1's. v1.1 (h1_decision_record.md A16): object X / 物品 X as in the v1.1 template, no quote marks around the label in either language, the lot stated once. DRAFT: the wording is the researcher's to decide.",
+  "case_context_versions": {
+    "v1.1": {
+      "status": "draft",
+      "zh": "本局情境：物品 X 代表一批{category}，數量 {quantity}；X: 1 表示整批物品。",
+      "en": "Scenario: object X represents one lot of {category}, quantity {quantity}; X: 1 denotes the entire lot."
+    }
+  },
   "scripted_seller": {
     "_comment": "Experiment B's fully scripted seller (ScriptedSellerAgent in negotiationarena/agents/scripted_seller.py); no API call. DRAFT: rules and wording await the researcher's review (worklog 2026-10-19). Its opening turn is the H1 seller's scripted opening word for word and is not set here. Floor = the case's cost C. Proposal k asks O - (O - C) * ((k-1)/8)^(1/concession_beta), rounded down to `rounding` TWD, never above the path (concession_beta 1 = equal steps). It accepts the buyer's latest valid offer once it is at least its own current ask; on its last turn it accepts any valid offer at or above C and rejects the rest. Templates: {price} and {money} are filled in; variants are used in turn, the same way in both languages.",
     "version": "s2-draft",

@@ -139,6 +139,7 @@ def build_seller(config, row, settings, kwargs):
             agent_name=AGENT_ONE,
             first_offer=settings["seller_first_offer"],
             language=lang,
+            prompt_version=row_versions(row)[0],
             **kwargs,
         )
     if row["tactic"] == "scripted_neutral":
@@ -154,6 +155,7 @@ def build_seller(config, row, settings, kwargs):
             rounding=script["rounding"],
             buyer_funds=settings["buyer_funds"],
             script_version=script["version"],
+            prompt_version=row_versions(row)[0],
         )
     raise NotImplementedError(f"tactic {row['tactic']} is not implemented yet")
 
@@ -295,7 +297,8 @@ def main():
     if args.dry_run:
         for lang in sorted({r["language"] for r in todo}):
             row = next(r for r in todo if r["language"] == lang)
-            settings = negotiation_settings(config, cases[row["case_id"]], row["structure"], lang, glossary)
+            settings = negotiation_settings(config, cases[row["case_id"]], row["structure"], lang, glossary,
+                                            row_versions(row)[0])
             game = build_game(config, profile_name, row, settings)
             print(f"\n===== {row['run_id']}")
             print(json.dumps(settings, ensure_ascii=False, indent=2))
@@ -309,7 +312,8 @@ def main():
     stopped = False
     for row in todo:
         label = row.get("game_label") or row["run_id"]
-        settings = negotiation_settings(config, cases[row["case_id"]], row["structure"], row["language"], glossary)
+        settings = negotiation_settings(config, cases[row["case_id"]], row["structure"], row["language"], glossary,
+                                        row_versions(row)[0])
         seller_version, buyer_version = row_versions(row)
         # Retry a failed attempt right away instead of at the next
         # invocation, so a pair's two games stay close in time.

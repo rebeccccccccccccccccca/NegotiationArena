@@ -41,7 +41,7 @@ def render(config, case, structure, version, glossary, log_root):
     for lang in ("en", "zh"):
         row = {"language": lang, "stage": "render", "game_label": f"render_{lang}", "tactic": "baseline",
                "seller_prompt_version": version, "buyer_prompt_version": version, "structure": structure}
-        settings = negotiation_settings(config, case, structure, lang, glossary)
+        settings = negotiation_settings(config, case, structure, lang, glossary, version)
         game = br.build_game(config, config["model_profile"], row, settings)
         seller, buyer = game.players
         scripted = seller._scripted_first_offer()  # the scripted turn: no API call
@@ -59,12 +59,16 @@ def render(config, case, structure, version, glossary, log_root):
 
 def sheet(config, case, structure, version, rendered, glossary_source):
     s = rendered["en"]["settings"]
+    if version in config.get("case_context_versions", {}):
+        context_key, context = f"case_context_versions.{version}", config["case_context_versions"][version]
+    else:
+        context_key, context = "case_context", config["case_context"]
     lines = [
         f"# prompt {version} 中英全文審閱稿",
         "",
         f"由 `experiments/render_prompts.py` 依 `batch_runner.build_game` 的方式組出一局的所有模型可見文字，"
-        f"沒有呼叫 API。分類標籤來源：{glossary_source}；情境句來源：設定檔 `case_context`"
-        f"（狀態 {config['case_context'].get('status', '—')}）。",
+        f"沒有呼叫 API。分類標籤來源：{glossary_source}；情境句來源：設定檔 `{context_key}`"
+        f"（狀態 {context.get('status', '—')}）。",
         "",
         f"- 示例案例：`{case['case_id']}`（{case['role']}，pool_rank {case['pool_rank']}），"
         f"標題「{case['title']}」，分類 {case['category_code']}，數量 {s['quantity']}",

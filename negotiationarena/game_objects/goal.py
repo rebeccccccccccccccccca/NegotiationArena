@@ -311,12 +311,24 @@ class BuyerGoalZHV3(Goal):
         }
 
 
-# Prompt version v1.1 (h1_decision_record.md A8, A13): v1 with the upstream
-# slips fixed. Only the English seller sentence changes ("It costed" ->
-# "It cost"); the other three keep the v1 text, and are separate classes so
-# that every game records which version it ran (their own _type) and the
-# prompt template renders its v1.1 text (prompt_template). The v1 classes
-# above stay as they were.
+# Prompt version v1.1 (h1_decision_record.md A8, A13, A16): v1 with the
+# upstream slips fixed and the four sentences aligned across languages
+# ("the object" / 這件物品, the same "must not"), the amount shown as a
+# plain "440000 TWD" instead of the valuation's "X: 440000 TWD". Separate
+# classes, so that every game records which version it ran (their own
+# _type) and the prompt template renders its v1.1 text (prompt_template).
+# The v1 classes above stay as they were.
+
+
+def _whole_amount(valuation):
+    """The valuation's TWD amount for X, as the integer the goal sentence
+    shows."""
+    if set(valuation.valuation_dict) != {"X"}:
+        raise ValueError("v1.1 buy-sell goals need a valuation for X only")
+    amount = valuation.valuation_dict["X"]
+    if amount != int(amount):
+        raise ValueError("v1.1 goals need integer TWD amounts")
+    return int(amount)
 
 
 class SellerGoalV11(SellerGoal):
@@ -324,7 +336,12 @@ class SellerGoalV11(SellerGoal):
 
     def __init__(self, cost_of_production: Valuation):
         super().__init__(cost_of_production)
-        self.goal = f"Sell resources for as many {MONEY_TOKEN} as possible. It cost {self.cost_of_production} to produce the resources. Never sell below cost."
+        amount = _whole_amount(cost_of_production)
+        self.goal = (
+            f"Sell the object for the highest possible price (in {MONEY_TOKEN}). "
+            f"The production cost of the object is {amount} {MONEY_TOKEN}. "
+            "You must not sell below this cost."
+        )
 
     def json(self):
         return {
@@ -336,6 +353,15 @@ class SellerGoalV11(SellerGoal):
 class SellerGoalZHV11(SellerGoalZH):
     prompt_template = "v1.1"
 
+    def __init__(self, cost_of_production: Valuation):
+        super().__init__(cost_of_production)
+        amount = _whole_amount(cost_of_production)
+        self.goal = (
+            f"盡量以最高價格（以 {MONEY_TOKEN} 計價）出售這件物品。"
+            f"這件物品的生產成本為 {amount} {MONEY_TOKEN}。"
+            "不得低於此成本出售。"
+        )
+
     def json(self):
         return {
             "_type": "seller_goal_zh_v1_1",
@@ -346,6 +372,15 @@ class SellerGoalZHV11(SellerGoalZH):
 class BuyerGoalV11(BuyerGoal):
     prompt_template = "v1.1"
 
+    def __init__(self, willingness_to_pay: Valuation):
+        super().__init__(willingness_to_pay)
+        amount = _whole_amount(willingness_to_pay)
+        self.goal = (
+            f"Buy the object for the lowest possible price (in {MONEY_TOKEN}). "
+            f"Your maximum willingness to pay for the object is {amount} {MONEY_TOKEN}. "
+            "You must not pay more than this amount."
+        )
+
     def json(self):
         return {
             "_type": "buyer_goal_v1_1",
@@ -355,6 +390,15 @@ class BuyerGoalV11(BuyerGoal):
 
 class BuyerGoalZHV11(BuyerGoalZH):
     prompt_template = "v1.1"
+
+    def __init__(self, willingness_to_pay: Valuation):
+        super().__init__(willingness_to_pay)
+        amount = _whole_amount(willingness_to_pay)
+        self.goal = (
+            f"盡量以最低價格（以 {MONEY_TOKEN} 計價）購買這件物品。"
+            f"你對這件物品的最高願付價格為 {amount} {MONEY_TOKEN}。"
+            "不得支付超過此金額的價格。"
+        )
 
     def json(self):
         return {

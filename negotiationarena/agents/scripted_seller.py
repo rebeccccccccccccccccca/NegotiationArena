@@ -27,6 +27,20 @@ SCRIPTED_MESSAGE_TEMPLATES = {
     "en": "I am offering the object for {price} {money}.",
     "zh": "我以 {price} {money} 出售這件物品。",
 }
+# Prompt version v1.1 (h1_decision_record.md A16): an asking price in both
+# languages (v1's Chinese 出售 reads like a sale already made). v1 keeps
+# the text above.
+SCRIPTED_MESSAGE_TEMPLATES_V11 = {
+    "en": "My asking price for the object is {price} {money}.",
+    "zh": "我對這件物品的開價是 {price} {money}。",
+}
+
+
+def scripted_opening_message(language, price, prompt_version="v1"):
+    """The scripted seller's opening <message> for the seller's prompt
+    version."""
+    templates = SCRIPTED_MESSAGE_TEMPLATES_V11 if prompt_version == "v1.1" else SCRIPTED_MESSAGE_TEMPLATES
+    return templates[language].format(price=price, money=MONEY_TOKEN)
 
 # The scripted turn stays in the seller's own history as if the seller had
 # written it, so its private fields read like an ordinary turn in the
@@ -87,6 +101,7 @@ class FixedFirstOfferSellerAgent(ChatGPTAgent):
         resource_name="X",
         resource_amount=1,
         language="en",
+        prompt_version="v1",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -94,6 +109,7 @@ class FixedFirstOfferSellerAgent(ChatGPTAgent):
         self.resource_name = resource_name
         self.resource_amount = resource_amount
         self.language = language
+        self.prompt_version = prompt_version
         self.used_scripted_offer = False
 
     def chat(self):
@@ -108,9 +124,7 @@ class FixedFirstOfferSellerAgent(ChatGPTAgent):
             own_goal_text(self.conversation),
             SCRIPTED_REASON_TEMPLATES[self.language],
             "PROPOSAL",
-            SCRIPTED_MESSAGE_TEMPLATES[self.language].format(
-                price=self.first_offer, money=MONEY_TOKEN
-            ),
+            scripted_opening_message(self.language, self.first_offer, self.prompt_version),
             price=self.first_offer,
             resource_name=self.resource_name,
             resource_amount=self.resource_amount,
@@ -231,12 +245,14 @@ class ScriptedSellerAgent(Agent):
         script_version=None,
         resource_name="X",
         resource_amount=1,
+        prompt_version="v1",
         **_ignored,  # the other fields of a saved state (Agent.from_dict)
     ):
         super().__init__(agent_name)
         self.run_epoch_time_ms = str(round(time.time() * 1000))
         self.conversation = []
         self.prompt_entity_initializer = "system"
+        self.prompt_version = prompt_version
         self.first_offer = first_offer
         self.cost = cost
         self.templates = templates
@@ -291,7 +307,7 @@ class ScriptedSellerAgent(Agent):
             return self._turn(
                 "PROPOSAL",
                 SCRIPTED_REASON_TEMPLATES[self.language],
-                SCRIPTED_MESSAGE_TEMPLATES[self.language].format(price=self.first_offer, money=MONEY_TOKEN),
+                scripted_opening_message(self.language, self.first_offer, self.prompt_version),
                 price=self.first_offer,
             )
 

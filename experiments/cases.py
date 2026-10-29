@@ -131,20 +131,23 @@ def t1_problems(config, case, structures):
     return problems
 
 
-def case_context(config, case, language, glossary):
+def case_context(config, case, language, glossary, prompt_version=None):
+    """The context sentence: the template for the seller's prompt version
+    in case_context_versions, else the default case_context (v1's)."""
     label, source = category_label(case, language, glossary)
-    text = config["case_context"][language].format(
+    template = config.get("case_context_versions", {}).get(prompt_version, config["case_context"])
+    text = template[language].format(
         category=label, quantity=format_quantity(case["quantity"])
     )
     return text, label, source
 
 
-def negotiation_settings(config, case, structure, language, glossary):
+def negotiation_settings(config, case, structure, language, glossary, prompt_version=None):
     """Everything a run needs from one case, as a flat dict that is also
     stored in game_state.json under `experiment`."""
     budget = round_half_up(case["budget"])
     cost, offer, funds = prices(config, budget, structure)
-    context, label, source = case_context(config, case, language, glossary)
+    context, label, source = case_context(config, case, language, glossary, prompt_version)
     return {
         "case_id": case["case_id"],
         "pool_rank": int(case["pool_rank"]),

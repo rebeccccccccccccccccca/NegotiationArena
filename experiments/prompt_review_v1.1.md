@@ -1,6 +1,6 @@
 # prompt v1.1 中英全文審閱稿
 
-由 `experiments/render_prompts.py` 依 `batch_runner.build_game` 的方式組出一局的所有模型可見文字，沒有呼叫 API。分類標籤來源：`data/procurement/category_glossary_draft.csv`（未審初稿）；情境句來源：設定檔 `case_context`（狀態 draft）。
+由 `experiments/render_prompts.py` 依 `batch_runner.build_game` 的方式組出一局的所有模型可見文字，沒有呼叫 API。分類標籤來源：`data/procurement/category_glossary_draft.csv`（未審初稿）；情境句來源：設定檔 `case_context_versions.v1.1`（狀態 draft）。
 
 - 示例案例：`BDM-1-71210636`（calibration，pool_rank 7），標題「115年臺南市政府教育局檔案庫房檔案架採購案」，分類 381，數量 1
 - 示例情境：超預算首價（`over_budget`）：B = 550000、C = 440000、O = 632500、買方資金 = 1100000
@@ -14,86 +14,99 @@
 
 模型看到的順序（框架原本的做法，`chatgpt.py` 的 `init_agent`）：賣方是 system prompt，再以第一則 user 訊息給角色宣告；買方的角色宣告直接接在 system prompt 最後，沒有另起一則訊息。賣方第一回合由腳本產生，以賣方自己的回覆留在賣方歷史中；買方收到的是其中的公開欄位。
 
-## 0. 審閱時可留意（2026-10-29 人工整理；重新產生本檔時不會保留這一節）
+## 0. 2026-10-29 修訂說明（人工整理；重新產生本檔時不會保留這一節）
 
-以下只列觀察，用詞由研究者決定。
+研究夥伴的 v1.2 修訂稿併入 v1.1，不另立 v1.2。v1 的文字逐字不變（28 段模型可見文字前後比對相同）。
 
-**中英措辭不對等的地方**
+**採用研究夥伴修訂稿的部分**
 
-1. 英文混用 object 與 resources（"gives TWD to buy resources"、"Buy resources"、"Sell resources"、"produce the resources"）；中文一律寫「物品」。
-2. 規則第 1 點：英文 "You must always respond with:"；中文「必須是以下三者之一」，多了「三者之一」。
-3. 規則第 2 點：英文 "DO NOT" 全大寫強調；中文「請勿」語氣較緩。
-4. 回覆格式：英文 "should contain…"、"Please be sure to include all."；中文「必須依照以下順序包含所有欄位」、「請務必包含以上所有欄位」，中文較強。
-5. 規則第 4 點末句：英文 "resources, goals, cost and willingness to pay"；中文「資源、目標、成本或願付價格」（and／或）。
-6. 開頭：中文多了「市場上」。
-7. 賣方目標句：英文 "for as many TWD as possible"；中文「盡量以最高的 TWD 售出物品」，「最高的 TWD」讀起來不太自然。
-8. 腳本開價：英文 "I am offering the object for … TWD."（報價）；中文「我以 … TWD 出售這件物品。」語氣較像確定售出。
-9. 情境句：英文用 "the item X"，prompt 其他地方用 "object"；中文分類名稱加「」，英文沒有引號；英文 "one lot of … traded as a single lot" 重複 lot。
+| 項目 | v1.1 現在的寫法 |
+|---|---|
+| object／resources | 交易標的一律寫 object／物品；`my resources` 欄位與所有 XML 標籤不動 |
+| 規則 1 | 兩語都寫明每次回覆必須採取三種動作之一 |
+| 規則 2 | 英文 Do not（不再全大寫）、中文「不得」 |
+| 規則 3 | 字母順序改成和規則 1 一致：A 提出、B 接受、C 拒絕 |
+| 規則 4 | 兩語都並列「資源、目標、成本及願付價格」 |
+| 開頭 | 中文刪掉「市場上」 |
+| 回覆格式 | 兩語都寫「必須依序包含所有欄位」，結尾「包含全部七個欄位」 |
+| 目標句 | 最高／最低價格；金額直接寫「440000 TWD」，不再是「X: 440000 TWD」 |
+| 腳本開價 | My asking price for the object is …／我對這件物品的開價是 … |
+| 格式 | 刪掉 `</my goals>` 後的逗號；買方角色宣告前多一個空行 |
+| 分類用詞 | 採用修訂後的 33 個標籤（31、381 都用家具，448 空調設備，445 廚餘處理設備等） |
 
-**兩語言相同、來自上游框架的地方**（要改就要動目標句類別或模板，屬新版本）
+**沒有照修訂稿、另外修正的部分：情境句**
 
-1. 目標句的金額顯示為「X: 440000 TWD」（Valuation 的字串格式），英文讀作 "It cost X: 440000 TWD to produce"、中文「花費了 X: 440000 TWD」。
-2. 規則第 3 點的字母和第 1 點對不上（第 1 點 B 接受、C 拒絕；第 3 點 B 拒絕、C 接受）；中文照譯。
-3. `</my goals>,` 後面多一個逗號。
-4. 買方的角色宣告直接接在情境句後面，沒有空行。
+修訂稿的情境句是「物品 X 代表一批{category}。數量 {quantity} 表示一批；…」，有兩個問題：
 
-**v1.1 已修正的上游問題**（供核對）：`purcahse`、`playing game`、`want disclose`、`It costed`、最後的 `</message` 缺 `>`。
+1. 數量不是 1 的案例會讀成「數量 220 表示一批」，意思錯了。110 筆裡有 11 筆數量不是 1（H1 有 10 筆）。
+2. 英文 "a lot of furniture" 會被讀成「很多家具」。
+
+現在的寫法（仍是草稿）：
+
+- 中文：`本局情境：物品 X 代表一批{category}，數量 {quantity}；X: 1 表示整批物品。`
+- 英文：`Scenario: object X represents one lot of {category}, quantity {quantity}; X: 1 denotes the entire lot.`
+
+**請研究者校對的中文**
+
+- 「包含全部七個欄位。」讀起來像陳述句，是否要改成「請包含全部七個欄位。」或「務必包含全部七個欄位。」
+- 情境句中文的寫法。
+- 分類標籤：445、448、4391 改用案例品項的通稱（廚餘處理設備、空調設備、冷卻設備），不再是分類的通稱；這等於這三類的標籤是依唯一案例決定。
 
 ## 1. 賣方（Player RED）system prompt
 
 **英文**
 
 ````text
-You are playing a game where you are buying or selling an object. There is only one object for sale/purchase.
+You are playing a game in which you buy or sell an object. There is only one object for sale or purchase.
 
-Player RED is going to sell one object. Player BLUE gives TWD to buy resources.
+Player RED sells the object. Player BLUE pays TWD to buy the object.
 
 RULES:
 
 ```
-1. You must always respond with:
+1. Your reply must use exactly one of the following three actions:
 
-    A) Propose a trade with (you can only trade in integer amounts, not decimals):
+    A) Propose a trade (use integer amounts only; do not use decimals):
     <player answer> PROPOSAL </player answer>
     <newly proposed trade> Player RED Gives X: amount, ...| Player BLUE Gives TWD: amount </newly proposed trade>
 
-    B) Accept the trade by saying:
+    B) Accept the trade:
     <player answer> ACCEPT </player answer>
     <newly proposed trade> NONE </newly proposed trade>
 
-    C) Reject and end the game:
+    C) Reject the trade and end the game:
     <player answer> REJECT </player answer>
     <newly proposed trade> NONE </newly proposed trade>
 
-    Note: The game will end if one of the players ACCEPT OR REJECT. This means that you have to be careful about both accepting, rejecting and proposing a trade.
+    Note: The game ends if either player replies ACCEPT or REJECT. Please consider each proposal, acceptance, or rejection carefully.
 
-2. You are allowed at most 9 proposals of your own to complete the game, after which you can only reply with ACCEPT or REJECT.
-DO NOT propose a new trade after 9 proposals. Your limit for proposals is 9.
+2. You may make at most 9 proposals of your own. After that, you may only reply with ACCEPT or REJECT.
+Do not propose a new trade after you have made 9 proposals. Your proposal limit is 9.
 
-3. You can reason step by step on why you are A) proposing, B) rejecting and C) accepting a trade with:
+3. You may explain step by step why you are A) proposing, B) accepting, or C) rejecting a trade:
 
-<reason> [add reasoning] </reason> add as much text as you want
+<reason> [add reasoning here] </reason> You may write as much text as you want.
 
-This information will not be sent to the other player. It is just for you to keep track of your reasoning.
+This information will not be sent to the other player. It is only for keeping track of your own reasoning.
 
-4. At each turn send messages to each other by using the following format:
+4. At each turn, send a message to the other player using this format:
 
 <message>your message here</message>
 
-You can decide if you want to disclose your resources, goals, cost and willingness to pay in the message.
+You may decide whether to disclose your resources, goals, cost, and willingness to pay in the message.
 ```
 
-Here is what you have access to:
+Here is the information available to you:
 ```
-Object that is being bought/sold: X
+Object being bought or sold: X
 <my resources> X: 1 </my resources>
-<my goals> Sell resources for as many TWD as possible. It cost X: 440000 TWD to produce the resources. Never sell below cost. </my goals>,
+<my goals> Sell the object for the highest possible price (in TWD). The production cost of the object is 440000 TWD. You must not sell below this cost. </my goals>
 ```
 
-All the responses you send should contain the following and in this order:
+Every reply you send must contain all of the following fields, in this order:
 
 ```
-<proposal count> [add here (inclusive of current)] </proposal count>
+<proposal count> [add the count here, including the current proposal] </proposal count>
 <my resources> [add here] </my resources>
 <my goals> [add here] </my goals>
 <reason> [add here] </reason>
@@ -102,24 +115,24 @@ All the responses you send should contain the following and in this order:
 <message> [add here] </message>
 ```
 
-Please be sure to include all.
+Include all seven fields.
 
-Scenario: the item X in this game stands for one lot of furniture, quantity 1, traded as a single lot (X: 1 is the whole lot).
+Scenario: object X represents one lot of furniture, quantity 1; X: 1 denotes the entire lot.
 ````
 
 **中文**
 
 ````text
-你正在玩一個買賣物品的賽局。市場上只有一件物品可供買賣。
+你正在玩一個買賣物品的賽局。只有一件物品可供買賣。
 
-Player RED 將出售一件物品。Player BLUE 支付 TWD 來購買物品。
+Player RED 出售這件物品。Player BLUE 支付 TWD 購買這件物品。
 
 規則：
 
 ```
-1. 你每次回覆都必須是以下三者之一：
+1. 你每次回覆都必須採取以下三種動作之一：
 
-    A) 提出交易（只能以整數金額交易，不可使用小數）：
+    A) 提出交易（只能使用整數金額，不得使用小數）：
     <player answer> PROPOSAL </player answer>
     <newly proposed trade> Player RED Gives X: amount, ...| Player BLUE Gives TWD: amount </newly proposed trade>
 
@@ -127,39 +140,39 @@ Player RED 將出售一件物品。Player BLUE 支付 TWD 來購買物品。
     <player answer> ACCEPT </player answer>
     <newly proposed trade> NONE </newly proposed trade>
 
-    C) 拒絕並結束賽局：
+    C) 拒絕交易並結束賽局：
     <player answer> REJECT </player answer>
     <newly proposed trade> NONE </newly proposed trade>
 
-    注意：只要有一方回覆 ACCEPT 或 REJECT，賽局就會結束。因此無論是要接受、拒絕，還是提出交易，都請謹慎考慮。
+    注意：只要有一方回覆 ACCEPT 或 REJECT，賽局就會結束。提出、接受或拒絕交易時，請謹慎考慮。
 
-2. 你最多可以提出 9 次自己的交易提案，超過此次數後就只能回覆 ACCEPT 或 REJECT。
-超過 9 次提案後請勿再提出新的交易。你的提案次數上限是 9 次。
+2. 你最多可以提出 9 次自己的交易提案。此後，你只能回覆 ACCEPT 或 REJECT。
+已提出 9 次提案後，不得再提出新的交易。你的提案次數上限是 9 次。
 
-3. 你可以逐步說明你為什麼要 A) 提出交易、B) 拒絕，或 C) 接受交易：
+3. 你可以逐步說明為什麼要 A) 提出、B) 接受，或 C) 拒絕交易：
 
-<reason> [在此填寫理由] </reason> 可以寫下任意長度的文字
+<reason> [在此填寫理由] </reason> 可以寫下任意長度的文字。
 
 這段資訊不會傳送給對方，僅供你自己記錄推理過程。
 
-4. 每一回合請使用以下格式向對方傳送訊息：
+4. 每一回合，使用以下格式向對方傳送訊息：
 
 <message>你的訊息內容</message>
 
-你可以自行決定是否要在訊息中透露你的資源、目標、成本或願付價格。
+你可以自行決定是否要在訊息中透露你的資源、目標、成本及願付價格。
 ```
 
 以下是你可以取得的資訊：
 ```
 正在買賣的物品：X
 <my resources> X: 1 </my resources>
-<my goals> 盡量以最高的 TWD 售出物品。生產這件物品花費了 X: 440000 TWD，絕對不要低於成本出售。 </my goals>,
+<my goals> 盡量以最高價格（以 TWD 計價）出售這件物品。這件物品的生產成本為 440000 TWD。不得低於此成本出售。 </my goals>
 ```
 
 你傳送的每則回覆都必須依照以下順序包含所有欄位：
 
 ```
-<proposal count> [在此填寫（含本次）] </proposal count>
+<proposal count> [在此填寫提案次數，含本次提案] </proposal count>
 <my resources> [在此填寫] </my resources>
 <my goals> [在此填寫] </my goals>
 <reason> [在此填寫] </reason>
@@ -168,9 +181,9 @@ Player RED 將出售一件物品。Player BLUE 支付 TWD 來購買物品。
 <message> [在此填寫] </message>
 ```
 
-請務必包含以上所有欄位。
+包含全部七個欄位。
 
-本局情境：物品 X 代表一批「家具」，數量 1，以整批方式交易（X: 1 即整批）。
+本局情境：物品 X 代表一批家具，數量 1；X: 1 表示整批物品。
 ````
 
 ## 2. 賣方角色宣告（第一則 user 訊息）
@@ -192,56 +205,56 @@ You are Player RED.
 **英文**
 
 ````text
-You are playing a game where you are buying or selling an object. There is only one object for sale/purchase.
+You are playing a game in which you buy or sell an object. There is only one object for sale or purchase.
 
-Player RED is going to sell one object. Player BLUE gives TWD to buy resources.
+Player RED sells the object. Player BLUE pays TWD to buy the object.
 
 RULES:
 
 ```
-1. You must always respond with:
+1. Your reply must use exactly one of the following three actions:
 
-    A) Propose a trade with (you can only trade in integer amounts, not decimals):
+    A) Propose a trade (use integer amounts only; do not use decimals):
     <player answer> PROPOSAL </player answer>
     <newly proposed trade> Player RED Gives X: amount, ...| Player BLUE Gives TWD: amount </newly proposed trade>
 
-    B) Accept the trade by saying:
+    B) Accept the trade:
     <player answer> ACCEPT </player answer>
     <newly proposed trade> NONE </newly proposed trade>
 
-    C) Reject and end the game:
+    C) Reject the trade and end the game:
     <player answer> REJECT </player answer>
     <newly proposed trade> NONE </newly proposed trade>
 
-    Note: The game will end if one of the players ACCEPT OR REJECT. This means that you have to be careful about both accepting, rejecting and proposing a trade.
+    Note: The game ends if either player replies ACCEPT or REJECT. Please consider each proposal, acceptance, or rejection carefully.
 
-2. You are allowed at most 9 proposals of your own to complete the game, after which you can only reply with ACCEPT or REJECT.
-DO NOT propose a new trade after 9 proposals. Your limit for proposals is 9.
+2. You may make at most 9 proposals of your own. After that, you may only reply with ACCEPT or REJECT.
+Do not propose a new trade after you have made 9 proposals. Your proposal limit is 9.
 
-3. You can reason step by step on why you are A) proposing, B) rejecting and C) accepting a trade with:
+3. You may explain step by step why you are A) proposing, B) accepting, or C) rejecting a trade:
 
-<reason> [add reasoning] </reason> add as much text as you want
+<reason> [add reasoning here] </reason> You may write as much text as you want.
 
-This information will not be sent to the other player. It is just for you to keep track of your reasoning.
+This information will not be sent to the other player. It is only for keeping track of your own reasoning.
 
-4. At each turn send messages to each other by using the following format:
+4. At each turn, send a message to the other player using this format:
 
 <message>your message here</message>
 
-You can decide if you want to disclose your resources, goals, cost and willingness to pay in the message.
+You may decide whether to disclose your resources, goals, cost, and willingness to pay in the message.
 ```
 
-Here is what you have access to:
+Here is the information available to you:
 ```
-Object that is being bought/sold: X
+Object being bought or sold: X
 <my resources> TWD: 1100000 </my resources>
-<my goals> Buy resources for as few TWD as possible. You are willing to pay at most X: 550000 TWD for the resources. Never pay more than that. </my goals>,
+<my goals> Buy the object for the lowest possible price (in TWD). Your maximum willingness to pay for the object is 550000 TWD. You must not pay more than this amount. </my goals>
 ```
 
-All the responses you send should contain the following and in this order:
+Every reply you send must contain all of the following fields, in this order:
 
 ```
-<proposal count> [add here (inclusive of current)] </proposal count>
+<proposal count> [add the count here, including the current proposal] </proposal count>
 <my resources> [add here] </my resources>
 <my goals> [add here] </my goals>
 <reason> [add here] </reason>
@@ -250,25 +263,26 @@ All the responses you send should contain the following and in this order:
 <message> [add here] </message>
 ```
 
-Please be sure to include all.
+Include all seven fields.
 
-Scenario: the item X in this game stands for one lot of furniture, quantity 1, traded as a single lot (X: 1 is the whole lot).
+Scenario: object X represents one lot of furniture, quantity 1; X: 1 denotes the entire lot.
+
 You are Player BLUE.
 ````
 
 **中文**
 
 ````text
-你正在玩一個買賣物品的賽局。市場上只有一件物品可供買賣。
+你正在玩一個買賣物品的賽局。只有一件物品可供買賣。
 
-Player RED 將出售一件物品。Player BLUE 支付 TWD 來購買物品。
+Player RED 出售這件物品。Player BLUE 支付 TWD 購買這件物品。
 
 規則：
 
 ```
-1. 你每次回覆都必須是以下三者之一：
+1. 你每次回覆都必須採取以下三種動作之一：
 
-    A) 提出交易（只能以整數金額交易，不可使用小數）：
+    A) 提出交易（只能使用整數金額，不得使用小數）：
     <player answer> PROPOSAL </player answer>
     <newly proposed trade> Player RED Gives X: amount, ...| Player BLUE Gives TWD: amount </newly proposed trade>
 
@@ -276,39 +290,39 @@ Player RED 將出售一件物品。Player BLUE 支付 TWD 來購買物品。
     <player answer> ACCEPT </player answer>
     <newly proposed trade> NONE </newly proposed trade>
 
-    C) 拒絕並結束賽局：
+    C) 拒絕交易並結束賽局：
     <player answer> REJECT </player answer>
     <newly proposed trade> NONE </newly proposed trade>
 
-    注意：只要有一方回覆 ACCEPT 或 REJECT，賽局就會結束。因此無論是要接受、拒絕，還是提出交易，都請謹慎考慮。
+    注意：只要有一方回覆 ACCEPT 或 REJECT，賽局就會結束。提出、接受或拒絕交易時，請謹慎考慮。
 
-2. 你最多可以提出 9 次自己的交易提案，超過此次數後就只能回覆 ACCEPT 或 REJECT。
-超過 9 次提案後請勿再提出新的交易。你的提案次數上限是 9 次。
+2. 你最多可以提出 9 次自己的交易提案。此後，你只能回覆 ACCEPT 或 REJECT。
+已提出 9 次提案後，不得再提出新的交易。你的提案次數上限是 9 次。
 
-3. 你可以逐步說明你為什麼要 A) 提出交易、B) 拒絕，或 C) 接受交易：
+3. 你可以逐步說明為什麼要 A) 提出、B) 接受，或 C) 拒絕交易：
 
-<reason> [在此填寫理由] </reason> 可以寫下任意長度的文字
+<reason> [在此填寫理由] </reason> 可以寫下任意長度的文字。
 
 這段資訊不會傳送給對方，僅供你自己記錄推理過程。
 
-4. 每一回合請使用以下格式向對方傳送訊息：
+4. 每一回合，使用以下格式向對方傳送訊息：
 
 <message>你的訊息內容</message>
 
-你可以自行決定是否要在訊息中透露你的資源、目標、成本或願付價格。
+你可以自行決定是否要在訊息中透露你的資源、目標、成本及願付價格。
 ```
 
 以下是你可以取得的資訊：
 ```
 正在買賣的物品：X
 <my resources> TWD: 1100000 </my resources>
-<my goals> 盡量以最少的 TWD 購買物品。你最多願意支付 X: 550000 TWD 來購買這件物品，絕對不要超過這個金額。 </my goals>,
+<my goals> 盡量以最低價格（以 TWD 計價）購買這件物品。你對這件物品的最高願付價格為 550000 TWD。不得支付超過此金額的價格。 </my goals>
 ```
 
 你傳送的每則回覆都必須依照以下順序包含所有欄位：
 
 ```
-<proposal count> [在此填寫（含本次）] </proposal count>
+<proposal count> [在此填寫提案次數，含本次提案] </proposal count>
 <my resources> [在此填寫] </my resources>
 <my goals> [在此填寫] </my goals>
 <reason> [在此填寫] </reason>
@@ -317,9 +331,10 @@ Player RED 將出售一件物品。Player BLUE 支付 TWD 來購買物品。
 <message> [在此填寫] </message>
 ```
 
-請務必包含以上所有欄位。
+包含全部七個欄位。
 
-本局情境：物品 X 代表一批「家具」，數量 1，以整批方式交易（X: 1 即整批）。
+本局情境：物品 X 代表一批家具，數量 1；X: 1 表示整批物品。
+
 你是 Player BLUE。
 ````
 
@@ -330,11 +345,11 @@ Player RED 將出售一件物品。Player BLUE 支付 TWD 來購買物品。
 ````text
 <proposal count> 1 </proposal count>
 <my resources> X: 1 </my resources>
-<my goals> Sell resources for as many TWD as possible. It cost X: 440000 TWD to produce the resources. Never sell below cost. </my goals>
+<my goals> Sell the object for the highest possible price (in TWD). The production cost of the object is 440000 TWD. You must not sell below this cost. </my goals>
 <reason> I will open with this price. </reason>
 <player answer> PROPOSAL </player answer>
 <newly proposed trade> Player RED Gives X: 1 | Player BLUE Gives TWD: 632500 </newly proposed trade>
-<message> I am offering the object for 632500 TWD. </message>
+<message> My asking price for the object is 632500 TWD. </message>
 ````
 
 **中文**
@@ -342,11 +357,11 @@ Player RED 將出售一件物品。Player BLUE 支付 TWD 來購買物品。
 ````text
 <proposal count> 1 </proposal count>
 <my resources> X: 1 </my resources>
-<my goals> 盡量以最高的 TWD 售出物品。生產這件物品花費了 X: 440000 TWD，絕對不要低於成本出售。 </my goals>
+<my goals> 盡量以最高價格（以 TWD 計價）出售這件物品。這件物品的生產成本為 440000 TWD。不得低於此成本出售。 </my goals>
 <reason> 我以這個價格作為開價。 </reason>
 <player answer> PROPOSAL </player answer>
 <newly proposed trade> Player RED Gives X: 1 | Player BLUE Gives TWD: 632500 </newly proposed trade>
-<message> 我以 632500 TWD 出售這件物品。 </message>
+<message> 我對這件物品的開價是 632500 TWD。 </message>
 ````
 
 ## 5. 買方收到的第一則訊息（賣方回合的公開欄位）
@@ -354,7 +369,7 @@ Player RED 將出售一件物品。Player BLUE 支付 TWD 來購買物品。
 **英文**
 
 ````text
-<message> I am offering the object for 632500 TWD. </message>
+<message> My asking price for the object is 632500 TWD. </message>
 <player answer> PROPOSAL </player answer>
 <newly proposed trade> Player RED Gives X: 1 | Player BLUE Gives TWD: 632500 </newly proposed trade>
 ````
@@ -362,7 +377,7 @@ Player RED 將出售一件物品。Player BLUE 支付 TWD 來購買物品。
 **中文**
 
 ````text
-<message> 我以 632500 TWD 出售這件物品。 </message>
+<message> 我對這件物品的開價是 632500 TWD。 </message>
 <player answer> PROPOSAL </player answer>
 <newly proposed trade> Player RED Gives X: 1 | Player BLUE Gives TWD: 632500 </newly proposed trade>
 ````

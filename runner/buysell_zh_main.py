@@ -56,7 +56,8 @@ def parse_args():
         choices=["v1", "v1.1", "v2"],
         default="v1",
         help="v1 is the standard SellerGoalZH cost sentence; v1.1 is v1 "
-        "with the prompt template's typo fixed, for both sides (the "
+        "with its slips fixed and the wording aligned with English, for "
+        "both sides, the prompt template and the scripted opening (the "
         "version H1 runs); v2 is the task04 paraphrase (same meaning, "
         "different wording), used to check if the seller's opening-price "
         "behaviour is wording-sensitive. Never overwrites v1.",
@@ -85,6 +86,7 @@ if __name__ == "__main__":
                     **AGENT_KWARGS,
                     first_offer=args.seller_first_offer,
                     language="zh",
+                    prompt_version=args.prompt_version,
                 )
             else:
                 a1 = ChatGPTAgent(agent_name=AGENT_ONE, **AGENT_KWARGS)

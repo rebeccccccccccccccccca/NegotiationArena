@@ -651,15 +651,57 @@
 - 確認一件框架行為：買方的角色宣告是直接接在 system prompt 最後
   （`chatgpt.py` 的 `init_agent`），賣方則是另一則 user 訊息。
 
+### prompt v1.1 擴充：併入研究夥伴的 v1.2 修訂稿（決策紀錄 A16、v0.9）
+
+- 研究夥伴另做了 v1.2 修訂稿（中英全文審閱稿、33 個分類修訂、程式修正包，22 項
+  離線測試，未呼叫模型）。研究者決定只保留 v1.1：把修訂稿中可用的部分併入
+  v1.1，不出現 v1.2。修正包的來源檔雜湊與 repo 現況相同，但沒有整包套用，只取
+  用措辭與做法，改寫成 v1.1。
+- 改動前先存下 v1、v2、v3 的 28 段模型可見文字（模板、目標句、序列化、v1 腳本
+  開價、預設情境句）與既有 16 項測試結果；改動後 28 段逐字相同，測試全過。
+- 框架與實驗端改動（`game.py`、`parser.py`、`chatgpt.py` 未動）：
+  - 中英 `prompt.py`：v1 路徑保留原文（含上游錯字），v1.1 改用獨立的
+    `_buy_sell_prompt_v11`：交易標的一律 object／物品；規則 1 明寫三種動作之一；
+    規則 2 英文 Do not、中文「不得」；規則 3 字母順序與規則 1 一致；規則 4 並列
+    四項；中文刪「市場上」；回覆格式兩語都寫必須依序包含、結尾「包含全部七個
+    欄位」；刪 `</my goals>` 後的逗號；結尾多一個空行，讓買方角色宣告前空一行。
+  - `goal.py`：四個 v1.1 目標句改為最高／最低價格（以 TWD 計價），金額直接寫成
+    「440000 TWD」（`_whole_amount`，非整數或非只有 X 時報錯），底線 must not／
+    不得；`_type` 與序列化不變。
+  - `scripted_seller.py`：腳本開價依賣方版本：v1 不變，v1.1 為「My asking price
+    for the object is … TWD.」／「我對這件物品的開價是 … TWD。」；兩種腳本賣方都
+    多一個 `prompt_version` 參數（預設 v1）。
+  - `cases.py`、`batch_runner.py`、`render_prompts.py`、兩支單局腳本：情境句與
+    腳本開價依賣方版本選用；設定檔新增 `case_context_versions.v1.1`，沒列的版本
+    沿用原本的 `case_context`（v1 的）。
+- 情境句沒有照修訂稿：修訂稿寫「數量 {quantity} 表示一批」，數量不是 1 的 11 筆
+  （H1 有 10 筆）會讀成「數量 220 表示一批」；英文 "a lot of" 會被讀成「很多」。
+  現為「本局情境：物品 X 代表一批{category}，數量 {quantity}；X: 1 表示整批物品。」
+  ／「Scenario: object X represents one lot of {category}, quantity {quantity}; X: 1
+  denotes the entire lot.」（草稿）。
+- 分類對照：`category_glossary_draft.csv` 改用研究夥伴的修訂版（15 個代碼的
+  用詞與起草說明更新，狀態 `revised_draft_2026-10-29`），仍是草稿。445、448、4391
+  改用唯一案例的品項通稱。
+- 新增 `tests/test_prompt_v11.py`（7 項，改寫自修訂包的測試）：目標句金額格式、
+  v1 目標句不變、腳本開價與情境句依版本、模板措辭與結尾空行、渲染與買方收到的
+  公開欄位、整局以假買方跑完並解析。全部 23 項離線測試通過。
+- 依 CLAUDE.md 實跑驗證（Luna，v1.1，C 40、B 60、腳本開價 69）：英文、中文各一局
+  4 步成交，每一步都解析到 `<player answer>` 與 `<newly proposed trade>`；雙方
+  system prompt 是新的 v1.1 文字，腳本開價是新句子。兩局已移到
+  `.logs_archive/en_baseline_test/`、`.logs_archive/zh_baseline_test/`（`.logs/`
+  下留了兩個空資料夾，OneDrive 權限不讓刪）。
+- 重新產生 `prompt_review_v1.1.md`，第 0 節改為這次的修訂說明與待校對項目。
+- `prompt_versions.json` 的 v1.1 說明同步更新。
+
 ### 下次要做（更新）
 
 你：
 
-1. 審分類對照初稿的 `label_zh`／`label_en`，定情境句。
-2. 用 `prompt_review_v1.1.md` 審 prompt v1.1 中英全文，決定哪些措辭要改。
-3. 寫定次要情境是否跑滿、語言遵從的分母（P5）、花費上限（P8）。
+1. 用 `prompt_review_v1.1.md` 校對 v1.1 中文：「包含全部七個欄位。」的語氣、
+   情境句、分類標籤（特別是 445、448、4391）。
+2. 寫定次要情境是否跑滿、語言遵從的分母（P5）、花費上限（P8）。
 
 我：
 
-1. 對照定稿後轉成 `category_glossary.csv`。
+1. 對照與情境句定稿後轉成 `category_glossary.csv`，情境句狀態改為定稿。
 2. 新增校準階段（小前導）的設定。

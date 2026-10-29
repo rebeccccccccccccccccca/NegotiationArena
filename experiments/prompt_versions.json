@@ -25,20 +25,21 @@
   {
     "version_id": "v1.1",
     "applies_to": "seller, buyer",
-    "purpose": "H1 正式資料用的基準版：v1 修正上游錯字與缺標籤（h1_decision_record.md A8、A13）",
-    "status": "使用中（H1）；中英全文待研究者審閱",
-    "code_ref": "SellerGoalV11 / SellerGoalZHV11 / BuyerGoalV11 / BuyerGoalZHV11 (negotiationarena/game_objects/goal.py)；buy_sell_prompt 依目標句的 prompt_template 渲染 v1.1 模板 (games/buy_sell_game/prompt.py、games/buy_sell_game_zh/prompt.py)",
-    "rationale": "v1 的英文模板寫成 purcahse，還有 playing game、want disclose 兩處文法錯誤；英文賣方目標句寫成 It costed；中英模板最後的 </message 缺 >。英文獨有的錯字與文法錯誤會混進中英比較，所以 H1 前修正。",
+    "purpose": "H1 正式資料用的基準版：v1 修正上游錯字與缺標籤，並對齊中英措辭（h1_decision_record.md A8、A13、A16）",
+    "status": "使用中（H1）；中文措辭、情境句與分類標籤待研究者校對",
+    "code_ref": "SellerGoalV11 / SellerGoalZHV11 / BuyerGoalV11 / BuyerGoalZHV11 (negotiationarena/game_objects/goal.py)；buy_sell_prompt 依目標句的 prompt_template 改用 _buy_sell_prompt_v11 (games/buy_sell_game/prompt.py、games/buy_sell_game_zh/prompt.py)；腳本開價 SCRIPTED_MESSAGE_TEMPLATES_V11 (negotiationarena/agents/scripted_seller.py)；情境句 case_context_versions.v1.1 (experiments/experiment_config.json)",
+    "rationale": "10-27：v1 的英文模板寫成 purcahse，還有 playing game、want disclose 兩處文法錯誤；英文賣方目標句寫成 It costed；中英模板最後的 </message 缺 >。10-29：中英全文審閱發現多處措辭不對等（英文混用 object 與 resources、DO NOT 大寫只在英文、should 與「必須」強度不同、規則 3 的字母和規則 1 對不上、中文腳本開價「出售」語氣像已售出），會混進中英比較，所以在任何校準或正式資料之前併入 v1.1。",
     "changes": [
-      "英文模板：playing game → playing a game",
-      "英文模板：sale/purcahse → sale/purchase",
-      "英文模板：want disclose → want to disclose",
-      "英文賣方目標句：It costed → It cost",
-      "中英模板格式說明最後一行：</message → </message>"
+      "英文模板：錯字與文法修正（purcahse、playing game、want disclose）",
+      "中英模板格式說明最後一行：</message → </message>",
+      "中英模板：交易標的一律 object／物品；規則 1 明寫三種動作之一；規則 2 英文 Do not、中文「不得」；規則 3 字母順序與規則 1 一致；規則 4 並列資源、目標、成本及願付價格；中文刪「市場上」；回覆格式兩語都寫「必須依序包含所有欄位」與「包含全部七個欄位」；刪 </my goals> 後的逗號；模板結尾多一個空行，買方角色宣告前因此空一行",
+      "中英目標句：最高／最低價格（以 TWD 計價），金額直接寫成 440000 TWD（不再是 X: 440000 TWD），底線一律 must not／不得",
+      "腳本開價：My asking price for the object is … TWD.／我對這件物品的開價是 … TWD。",
+      "情境句：物品 X／object X，標籤不加引號，數量照列，只說一次整批（case_context_versions.v1.1）"
     ],
-    "hypothesis": "N/A（修正錯字，不是用來檢驗假設的版本）。",
-    "note": "原版 v1 的類別與模板文字保留不動，供追溯。中文目標句與英文買方目標句的文字與 v1 相同，只換成 v1.1 類別，讓每局記錄版本並渲染 v1.1 模板。v2、v3 是以 v1 為底的變體，不能與 v1.1 同局使用（goal_versions.check_combination 會擋下）。兩處文法修正是在 10-27 的解析驗證局之後才加入，只改敘述文字、不動任何標籤，所以未再跑對局。",
-    "date": "2026-10-27",
+    "hypothesis": "N/A（修正錯字與對齊措辭，不是用來檢驗假設的版本）。",
+    "note": "原版 v1 的類別、模板、腳本開價與情境句保留不動，供追溯（10-29 改動前後 v1、v2、v3 的 28 段模型可見文字逐字相同）。v2、v3 是以 v1 為底的變體，不能與 v1.1 同局使用（goal_versions.check_combination 會擋下）。10-27 的兩局驗證局用的是舊版 v1.1 文字，已封存；10-29 以新文字重跑中英各一局驗證解析，也已封存。措辭修訂取自研究夥伴的 v1.2 修訂稿，但不另立 v1.2；情境句另修正修訂稿的兩個問題（數量不是 1 時讀成「數量 220 表示一批」、英文 a lot of 的歧義）。",
+    "date": "2026-10-27（10-29 擴充）",
     "commit": null
   },
   {
