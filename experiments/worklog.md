@@ -634,16 +634,30 @@
   來源、角色 20／80／10／0、H3 全用擴充批、備用依凍結版 `pool_rank`、抽查與
   盲判未執行）；第 1 節加入凍結時點；第 6 節精簡路線改為已定案、不足額規則註明
   未啟用；順手更正兩處過時說明（設定檔已依 A11–A14 修改、T1 已實作）。
-- 研究者決定：凍結版本與 v0.8 一起 commit，打 tag `pool-v1`。
+- 研究者決定：凍結版本與 v0.8 一起 commit，打 tag `pool-v1`。研究者 commit 為
+  `673f710d`，tag `pool-v1`（annotated）打在這個 commit 上，只在本機、未推送。
+
+### prompt v1.1 審閱稿
+
+- 新增 `experiments/render_prompts.py`：依 `batch_runner.build_game` 的方式組出
+  一局中英兩語的所有模型可見文字（雙方 system prompt、賣方角色宣告、賣方腳本
+  開價、買方收到的公開欄位），寫成 Markdown，不呼叫 API、不寫 `.logs/`；
+  `--draft-glossary` 可用未審的分類初稿。
+- 產生 `experiments/prompt_review_v1.1.md`：示例為第一筆校準案例（381，檔案架）
+  的超預算首價情境，附三種情境的 C／B／O。另加一節人工整理的觀察：9 處中英措辭
+  不對等（如 resources／物品、"DO NOT"／請勿、should／必須、腳本開價「出售」語氣）、
+  4 處兩語言相同的上游問題（目標句金額顯示為「X: 440000 TWD」、第 3 點字母與
+  第 1 點對不上等）。用詞由研究者決定。
+- 確認一件框架行為：買方的角色宣告是直接接在 system prompt 最後
+  （`chatgpt.py` 的 `init_agent`），賣方則是另一則 user 訊息。
 
 ### 下次要做（更新）
 
 你：
 
-1. 把凍結版本與決策紀錄 v0.8 一起 commit，打 tag `pool-v1`。
-2. 審分類對照初稿的 `label_zh`／`label_en`，定情境句。
-3. 審 prompt v1.1 全文；寫定次要情境是否跑滿、語言遵從的分母（P5）、花費上限
-   （P8）。
+1. 審分類對照初稿的 `label_zh`／`label_en`，定情境句。
+2. 用 `prompt_review_v1.1.md` 審 prompt v1.1 中英全文，決定哪些措辭要改。
+3. 寫定次要情境是否跑滿、語言遵從的分母（P5）、花費上限（P8）。
 
 我：
 
