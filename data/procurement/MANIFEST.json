@@ -41,7 +41,7 @@
     "fetched_from": "2026-10-16T11:20:32",
     "fetched_to": "2026-10-16T14:40:54"
   },
-  "created_at": "2026-10-16T14:42:10",
+  "created_at": "2026-10-29T11:37:15",
   "files": [
     {
       "path": "data/procurement/raw/CpcOpenData.xml",
@@ -70,23 +70,68 @@
     }
   ],
   "backup": {
-    "path": "backups/procurement_raw_20261016_1442.zip",
+    "path": "backups/procurement_raw_20261029_1137.zip",
     "bytes": 11381203,
     "sha256": "4de520dcd9b29f7d8a6a7a53191b450888ccf09a92148cbc4c8d6767965d9a19"
   },
   "pool_rules": {
     "path": "data/procurement/pool_rules.json",
-    "bytes": 765,
-    "sha256": "bf42995de3d7efde2c1ccdd735d9c4f2b8e361e6888b2cf208b5dbafddfe4b76",
-    "frozen": false,
+    "bytes": 1912,
+    "sha256": "859d9028086f87ce9df1911e79864edb6a41e5d47dd3fd507f1838a5e39367cd",
+    "frozen": true,
     "rules": {
-      "frozen": false,
+      "frozen": true,
       "seed": 20261016,
-      "roles": "calibration:10,stage1_2:40,stage3:40,wording:20,reserve:10",
+      "roles": "calibration:20,stage1_2:80,reserve:10",
+      "assignment": "blocked",
       "category_whitelist": [],
       "amount_tiers": [],
-      "budget_min": null,
-      "budget_max": null
+      "budget_min": 150000,
+      "budget_max": 1500000,
+      "coding_sheet": "data/procurement/case_coding.csv",
+      "require_coding": true,
+      "exclude_case_ids": [
+        "BDM-1-70986067",
+        "BDM-1-71016628",
+        "BDM-1-71081779",
+        "BDM-1-71174576",
+        "BDM-1-71209288",
+        "aaa-71080476",
+        "aaa-71166153",
+        "BDM-1-71174773"
+      ]
     }
-  }
+  },
+  "pool_record": [
+    {
+      "path": "data/procurement/coding_manual.md",
+      "bytes": 13727,
+      "sha256": "13851f293cf7defef5a9b2a411a3ddbaed5fe9cd4e86bc258a4fc260f9455ff6"
+    },
+    {
+      "path": "data/procurement/case_coding.csv",
+      "bytes": 114686,
+      "sha256": "17c47182a2ab9c6981f0900130520b9db66e9bd241a8336fc0565568a7ccb5d6"
+    },
+    {
+      "path": "data/procurement/coding_round2.csv",
+      "bytes": 132720,
+      "sha256": "4e396af88e205df869071d991ace187ff46f0303d18334baa85f617f4738a56e"
+    },
+    {
+      "path": "data/procurement/pool_confirm.csv",
+      "bytes": 65694,
+      "sha256": "ad5fae90238df6926fcaf3ed984b369fb4d01d30479b38fa67760835f3667e53"
+    },
+    {
+      "path": "data/procurement/pool_review_112.csv",
+      "bytes": 72844,
+      "sha256": "ace5e691c89d92eb6c110c8cdcdb242e61eab7cf3d8eb849a87d0b1be64b9f5d"
+    },
+    {
+      "path": "data/procurement/candidates.csv",
+      "bytes": 58398,
+      "sha256": "7d574058d98fe48115dd74f9f6de2b46540d4bd6b2ac3f96f539006ff0da1f22"
+    }
+  ]
 }

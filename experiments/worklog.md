@@ -608,3 +608,41 @@
 1. 你確認後凍結：`pool_rules.json` 的 `frozen`、`require_coding` 設為 true，
    重建，執行 `fetch_awards manifest`。
 2. 對照定稿後轉成 `category_glossary.csv`；新增校準階段（小前導）的設定。
+
+### 凍結案例池
+
+- 研究者核准凍結（研究夥伴另行核對：三份名單一致、角色與預算分布、T1、記憶體
+  試產計畫都與上方報告相符）。研究夥伴建議確認表、判讀表、案例池與編碼手冊要
+  存在同一個凍結版本裡，因為原本的 manifest 只記原始資料與規則，無法單靠它追溯
+  判讀成果；分類對照可在凍結後再審。
+- 新增 `data/procurement/pool_review_112.csv`：研究者檢閱過的 112 筆檢閱表
+  （xlsx 的「112筆確認」工作表，30 欄，內容未改，轉回後逐格比對相同），讓檢閱
+  紀錄能放進 repo、在 VS Code 直接看。「整理總覽」工作表是 10-27 填寫前的摘要
+  （仍寫確認欄空白），沒有轉檔。
+- `coding_manual.md`：狀態改為「2026-10-29 隨案例池凍結（研究者核准）」，註明
+  標為待審草稿的段落以凍結時的文字為準、選做的抽查與盲判沒有執行；10-21 的狀態
+  說明保留並標為已取代。
+- `pool_rules.json`：`frozen`、`require_coding` 改為 true。凍結設定下重建，
+  `candidates.csv` 等 6 個輸出與凍結前逐位元相同。
+- `fetch_awards.py`：`manifest` 另外記錄判讀成果的雜湊（`pool_record`）：編碼
+  手冊、`case_coding.csv`、`coding_round2.csv`、`pool_confirm.csv`、
+  `pool_review_112.csv`、`candidates.csv`。
+- 執行 `fetch_awards manifest`（2026-10-29 11:37）：原始資料 5 個檔案的雜湊與
+  10-16 相同；`pool_rules` 記為 frozen（sha256 `859d9028…`）；`candidates.csv`
+  sha256 `7d574058…`。之後重建通過凍結雜湊檢查，結果不變。
+
+### 下次要做（更新）
+
+你：
+
+1. 把凍結版本一起 commit（可另打 tag，例如 `pool-v1`）。
+2. 審分類對照初稿的 `label_zh`／`label_en`，定情境句。
+3. 審 prompt v1.1 全文與決策紀錄 v0.7；寫定次要情境是否跑滿、語言遵從的分母
+   （P5）、花費上限（P8）。
+4. 決策紀錄第 6 節仍寫精簡路線「待研究者審定」，第 1 節的時序表也還沒有凍結
+   這一筆；建議升 v0.8 記下。
+
+我：
+
+1. 對照定稿後轉成 `category_glossary.csv`。
+2. 新增校準階段（小前導）的設定。

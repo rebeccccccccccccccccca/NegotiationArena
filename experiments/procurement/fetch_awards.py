@@ -17,10 +17,13 @@ Steps, each resumable (re-running skips whatever is already on disk):
   all         the four steps above in order
   manifest    zip raw/ + sample_ids.csv into backups/ and record sizes,
               SHA-256 hashes, fetch dates and pool_rules.json (content
-              and hash) -> MANIFEST.json. Run it once the data is final
-              and again after freezing pool_rules.json: the API may
-              change or go offline, and the hashes show the backup and
-              rules are the ones analysed.
+              and hash) -> MANIFEST.json, plus the hashes of the manual
+              coding record the pool was built from (coding manual,
+              coding and review sheets, the confirmation sheet and the
+              researcher's review, candidates.csv). Run it once the data
+              is final and again after freezing pool_rules.json: the API
+              may change or go offline, and the hashes show the backup,
+              rules and coding are the ones analysed.
 
 Usage (from the repo root):
   .venv\\Scripts\\python -m experiments.procurement.fetch_awards all
@@ -60,6 +63,18 @@ DETAILS_PATH = RAW_DIR / "award_details.jsonl"
 FAILED_PATH = RAW_DIR / "details_failed.jsonl"
 MANIFEST_PATH = OUT_DIR / "MANIFEST.json"
 POOL_RULES_PATH = OUT_DIR / "pool_rules.json"
+# The manual coding behind the pool, frozen with pool_rules.json: the
+# manual, first-round coding, round-2 review sheet, the lean-route
+# confirmation sheet and the researcher's reviewed copy of it, and the
+# pool it produced.
+POOL_RECORD_PATHS = [
+    OUT_DIR / "coding_manual.md",
+    OUT_DIR / "case_coding.csv",
+    OUT_DIR / "coding_round2.csv",
+    OUT_DIR / "pool_confirm.csv",
+    OUT_DIR / "pool_review_112.csv",
+    OUT_DIR / "candidates.csv",
+]
 BACKUP_DIR = ROOT / "backups"
 
 AWARD_TYPE = "決標公告"
@@ -374,6 +389,7 @@ def step_manifest(start, end, seed):
             "frozen": bool(rules.get("frozen")),
             "rules": {k: v for k, v in rules.items() if not k.startswith("_")},
         }
+    manifest["pool_record"] = [file_entry(p) for p in POOL_RECORD_PATHS if p.exists()]
     MANIFEST_PATH.write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
